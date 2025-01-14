@@ -37,11 +37,12 @@ public class DBForkTest {
   private static final String WITNESS_ADDRESS = "address";
   private static final String WITNESS_URL = "url";
   private static final String WITNESS_VOTE = "voteCount";
-  private static final String ASSETS_KEY = "assets";
-  private static final String ASSETS_ACCOUNT_NAME = "accountName";
-  private static final String ASSETS_ACCOUNT_TYPE = "accountType";
-  private static final String ASSETS_ADDRESS = "address";
-  private static final String ASSETS_BALANCE = "balance";
+  private static final String ACCOUNTS_KEY = "accounts";
+  private static final String ACCOUNT_NAME = "accountName";
+  private static final String ACCOUNT_TYPE = "accountType";
+  private static final String ACCOUNT_ADDRESS = "address";
+  private static final String ACCOUNT_BALANCE = "balance";
+  private static final String ACCOUNT_OWNER = "owner";
   private static final String LATEST_BLOCK_TIMESTAMP = "latestBlockHeaderTimestamp";
   private static final String MAINTENANCE_INTERVAL = "maintenanceTimeInterval";
   private static final String NEXT_MAINTENANCE_TIME = "nextMaintenanceTime";
@@ -120,30 +121,35 @@ public class DBForkTest {
       );
     }
 
-    if (forkConfig.hasPath(ASSETS_KEY)) {
-      List<? extends Config> accounts = forkConfig.getConfigList(ASSETS_KEY);
+    if (forkConfig.hasPath(ACCOUNTS_KEY)) {
+      List<? extends Config> accounts = forkConfig.getConfigList(ACCOUNTS_KEY);
       if (accounts.isEmpty()) {
         System.out.println("no account listed in the config.");
       }
       accounts = accounts.stream()
-          .filter(c -> c.hasPath(ASSETS_ADDRESS))
+          .filter(c -> c.hasPath(ACCOUNT_ADDRESS))
           .collect(Collectors.toList());
       if (accounts.isEmpty()) {
         System.out.println("no account listed in the config.");
       }
       accounts.stream().forEach(
           a -> {
-            byte[] address = Commons.decodeFromBase58Check(a.getString(ASSETS_ADDRESS));
+            byte[] address = Commons.decodeFromBase58Check(a.getString(ACCOUNT_ADDRESS));
             AccountCapsule account = chainBaseManager.getAccountStore().get(address);
-            if (a.hasPath(ASSETS_BALANCE)) {
-              Assert.assertEquals(a.getLong(ASSETS_BALANCE), account.getBalance());
+            Assert.assertNotNull(account);
+            if (a.hasPath(ACCOUNT_BALANCE)) {
+              Assert.assertEquals(a.getLong(ACCOUNT_BALANCE), account.getBalance());
             }
-            if (a.hasPath(ASSETS_ACCOUNT_NAME)) {
-              Assert.assertArrayEquals(ByteArray.fromString(a.getString(ASSETS_ACCOUNT_NAME)),
+            if (a.hasPath(ACCOUNT_NAME)) {
+              Assert.assertArrayEquals(ByteArray.fromString(a.getString(ACCOUNT_NAME)),
                   account.getAccountName().toByteArray());
             }
-            if (a.hasPath(ASSETS_ACCOUNT_TYPE)) {
-              Assert.assertEquals(a.getString(ASSETS_ACCOUNT_TYPE), account.getType().toString());
+            if (a.hasPath(ACCOUNT_TYPE)) {
+              Assert.assertEquals(a.getString(ACCOUNT_TYPE), account.getType().toString());
+            }
+            if (a.hasPath(ACCOUNT_OWNER)) {
+              Assert.assertArrayEquals(Commons.decodeFromBase58Check(a.getString(ACCOUNT_OWNER)),
+                  account.getPermissionById(0).getKeys(0).getAddress().toByteArray());
             }
           }
       );

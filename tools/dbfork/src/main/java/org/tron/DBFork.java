@@ -9,6 +9,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ import org.tron.core.config.args.Args;
 import org.tron.core.db.Manager;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.AccountType;
+import org.tron.protos.Protocol.Permission;
 import org.tron.utils.FileUtils;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -42,11 +44,12 @@ public class DBFork implements Callable<Integer> {
 	private static final String WITNESS_ADDRESS = "address";
 	private static final String WITNESS_URL = "url";
 	private static final String WITNESS_VOTE = "voteCount";
-	private static final String ASSETS_KEY = "assets";
-	private static final String ASSETS_ACCOUNT_NAME = "accountName";
-	private static final String ASSETS_ACCOUNT_TYPE = "accountType";
-	private static final String ASSETS_ADDRESS = "address";
-	private static final String ASSETS_BALANCE = "balance";
+	private static final String ACCOUNTS_KEY = "accounts";
+	private static final String ACCOUNT_NAME = "accountName";
+	private static final String ACCOUNT_TYPE = "accountType";
+	private static final String ACCOUNT_ADDRESS = "address";
+	private static final String ACCOUNT_BALANCE = "balance";
+	private static final String ACCOUNT_OWNER = "owner";
 	private static final String LATEST_BLOCK_TIMESTAMP = "latestBlockHeaderTimestamp";
 	private static final String MAINTENANCE_INTERVAL = "maintenanceTimeInterval";
 	private static final String NEXT_MAINTENANCE_TIME = "nextMaintenanceTime";
@@ -164,14 +167,14 @@ public class DBFork implements Callable<Integer> {
 					witnesses.size(), activeWitnesses.size()).println();
 		}
 
-		if (forkConfig.hasPath(ASSETS_KEY)) {
-			List<? extends Config> accounts = forkConfig.getConfigList(ASSETS_KEY);
+		if (forkConfig.hasPath(ACCOUNTS_KEY)) {
+			List<? extends Config> accounts = forkConfig.getConfigList(ACCOUNTS_KEY);
 			if (accounts.isEmpty()) {
 				spec.commandLine().getOut().println("no account listed in the config.");
 			}
 
 			accounts = accounts.stream()
-					.filter(c -> c.hasPath(ASSETS_ADDRESS))
+					.filter(c -> c.hasPath(ACCOUNT_ADDRESS))
 					.collect(Collectors.toList());
 
 			if (accounts.isEmpty()) {
@@ -180,23 +183,34 @@ public class DBFork implements Callable<Integer> {
 
 			accounts.stream().forEach(
 					a -> {
-						ByteString byteAddress = ByteString.copyFrom(
-								Commons.decodeFromBase58Check(a.getString(ASSETS_ADDRESS)));
-						Account account = Account.newBuilder().setAddress(byteAddress).build();
-						AccountCapsule accountCapsule = new AccountCapsule(account);
-						if (a.hasPath(ASSETS_BALANCE) && a.getLong(ASSETS_BALANCE) > 0) {
-							accountCapsule.setBalance(a.getLong(ASSETS_BALANCE));
-						}
-						if (a.hasPath(ASSETS_ACCOUNT_NAME)) {
-							accountCapsule.setAccountName(
-									ByteArray.fromString(a.getString(ASSETS_ACCOUNT_NAME)));
-						}
-						if (a.hasPath(ASSETS_ACCOUNT_TYPE)) {
-							accountCapsule.updateAccountType(
-									AccountType.valueOf(a.getString(ASSETS_ACCOUNT_TYPE)));
+						byte[] address = Commons.decodeFromBase58Check(a.getString(ACCOUNT_ADDRESS));
+						AccountCapsule accountCapsule = chainBaseManager.getAccountStore().get(address);
+						if (Objects.isNull(accountCapsule)) {
+							ByteString byteAddress = ByteString.copyFrom(
+									Commons.decodeFromBase58Check(a.getString(ACCOUNT_ADDRESS)));
+							Account account = Account.newBuilder().setAddress(byteAddress).build();
+							accountCapsule = new AccountCapsule(account);
 						}
 
-						byte[] address = Commons.decodeFromBase58Check(a.getString(ASSETS_ADDRESS));
+						if (a.hasPath(ACCOUNT_BALANCE) && a.getLong(ACCOUNT_BALANCE) > 0) {
+							accountCapsule.setBalance(a.getLong(ACCOUNT_BALANCE));
+						}
+						if (a.hasPath(ACCOUNT_NAME)) {
+							accountCapsule.setAccountName(
+									ByteArray.fromString(a.getString(ACCOUNT_NAME)));
+						}
+						if (a.hasPath(ACCOUNT_TYPE)) {
+							accountCapsule.updateAccountType(
+									AccountType.valueOf(a.getString(ACCOUNT_TYPE)));
+						}
+
+						if (a.hasPath(ACCOUNT_OWNER)) {
+							byte[] owner = Commons.decodeFromBase58Check(a.getString(ACCOUNT_OWNER));
+							Permission ownerPermission = AccountCapsule
+									.createDefaultOwnerPermission(ByteString.copyFrom(owner));
+							accountCapsule.updatePermissions(ownerPermission, null, null);
+						}
+
 						chainBaseManager.getAccountStore().put(address, accountCapsule);
 					});
 			log.info("{} accounts have been modified.", accounts.size());
