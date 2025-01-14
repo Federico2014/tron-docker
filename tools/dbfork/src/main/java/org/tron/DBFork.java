@@ -37,7 +37,7 @@ import picocli.CommandLine.Command;
 		exitCodeListHeading = "Exit Codes:%n",
 		exitCodeList = {
 				"0:Successful",
-				"n:Internal error: exception occurred,please check toolkit.log"})
+				"n:Internal error: exception occurred,please check logs/dbfork.log"})
 public class DBFork implements Callable<Integer> {
 
 	private static final String WITNESS_KEY = "witnesses";
@@ -253,6 +253,7 @@ public class DBFork implements Callable<Integer> {
 
 		spec.commandLine().getOut().println("The shadow fork has been completed.");
 		log.info("The shadow fork has been completed.");
+		manager.close();
 		context.close();
 		return 0;
 	}
