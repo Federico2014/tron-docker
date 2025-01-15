@@ -16,14 +16,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.tron.common.application.TronApplicationContext;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Commons;
-import org.tron.consensus.ConsensusDelegate;
-import org.tron.core.ChainBaseManager;
 import org.tron.core.Constant;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.WitnessCapsule;
 import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
-import org.tron.core.db.Manager;
+import org.tron.core.store.AccountStore;
+import org.tron.core.store.DynamicPropertiesStore;
+import org.tron.core.store.WitnessScheduleStore;
+import org.tron.core.store.WitnessStore;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Permission;
@@ -107,17 +108,18 @@ public class DBFork implements Callable<Integer> {
 
     Args.setParam(new String[]{"-d", database}, Constant.TESTNET_CONF);
     TronApplicationContext context = new TronApplicationContext(DefaultConfig.class);
-    Manager manager = context.getBean(Manager.class);
-    ChainBaseManager chainBaseManager = manager.getChainBaseManager();
-    ConsensusDelegate consensusDelegate = context.getBean(ConsensusDelegate.class);
+    WitnessStore witnessStore = context.getBean(WitnessStore.class);
+    WitnessScheduleStore witnessScheduleStore = context.getBean(WitnessScheduleStore.class);
+    AccountStore accountStore = context.getBean(AccountStore.class);
+    DynamicPropertiesStore dynamicPropertiesStore = context.getBean(DynamicPropertiesStore.class);
 
     if (!retain) {
       log.info("Erase the previous witnesses and active witnesses.");
       spec.commandLine().getOut().println("Erase the previous witnesses and active witnesses.");
-      manager.getWitnessStore().getAllWitnesses().forEach(witnessCapsule -> {
-        manager.getWitnessStore().delete(witnessCapsule.getAddress().toByteArray());
+      witnessStore.getAllWitnesses().forEach(witnessCapsule -> {
+        witnessStore.delete(witnessCapsule.getAddress().toByteArray());
       });
-      manager.getWitnessScheduleStore().saveActiveWitnesses(new ArrayList<>());
+      witnessScheduleStore.saveActiveWitnesses(new ArrayList<>());
     }
 
     if (forkConfig.hasPath(WITNESS_KEY)) {
@@ -145,22 +147,22 @@ public class DBFork implements Callable<Integer> {
             if (w.hasPath(WITNESS_URL)) {
               witness.setUrl(w.getString(WITNESS_URL));
             }
-            chainBaseManager.getWitnessStore().put(address.toByteArray(), witness);
+            witnessStore.put(address.toByteArray(), witness);
           });
 
       List<ByteString> witnessList = new ArrayList<>();
-      consensusDelegate.getAllWitnesses().forEach(witnessCapsule -> {
+      witnessStore.getAllWitnesses().forEach(witnessCapsule -> {
         if (witnessCapsule.getIsJobs()) {
           witnessList.add(witnessCapsule.getAddress());
         }
       });
       witnessList.sort(Comparator.comparingLong((ByteString b) ->
-          consensusDelegate.getWitness(b.toByteArray()).getVoteCount())
+          witnessStore.get(b.toByteArray()).getVoteCount())
           .reversed()
           .thenComparing(Comparator.comparingInt(ByteString::hashCode).reversed()));
       List<ByteString> activeWitnesses = witnessList.subList(0,
           witnesses.size() >= MAX_ACTIVE_WITNESS_NUM ? MAX_ACTIVE_WITNESS_NUM : witnessList.size());
-      consensusDelegate.saveActiveWitnesses(activeWitnesses);
+      witnessScheduleStore.saveActiveWitnesses(activeWitnesses);
       log.info("{} witnesses and {} active witnesses have been modified.",
           witnesses.size(), activeWitnesses.size());
       spec.commandLine().getOut().format("%d witnesses and %d active witnesses have been modified.",
@@ -184,7 +186,7 @@ public class DBFork implements Callable<Integer> {
       accounts.stream().forEach(
           a -> {
             byte[] address = Commons.decodeFromBase58Check(a.getString(ACCOUNT_ADDRESS));
-            AccountCapsule accountCapsule = chainBaseManager.getAccountStore().get(address);
+            AccountCapsule accountCapsule = accountStore.get(address);
             if (Objects.isNull(accountCapsule)) {
               ByteString byteAddress = ByteString.copyFrom(
                   Commons.decodeFromBase58Check(a.getString(ACCOUNT_ADDRESS)));
@@ -211,7 +213,7 @@ public class DBFork implements Callable<Integer> {
               accountCapsule.updatePermissions(ownerPermission, null, null);
             }
 
-            chainBaseManager.getAccountStore().put(address, accountCapsule);
+            accountStore.put(address, accountCapsule);
           });
       log.info("{} accounts have been modified.", accounts.size());
       spec.commandLine().getOut().format("%d accounts have been modified.", accounts.size())
@@ -221,8 +223,7 @@ public class DBFork implements Callable<Integer> {
     if (forkConfig.hasPath(LATEST_BLOCK_TIMESTAMP)
         && forkConfig.getLong(LATEST_BLOCK_TIMESTAMP) > 0) {
       long latestBlockHeaderTimestamp = forkConfig.getLong(LATEST_BLOCK_TIMESTAMP);
-      chainBaseManager.getDynamicPropertiesStore().saveLatestBlockHeaderTimestamp(
-          latestBlockHeaderTimestamp);
+      dynamicPropertiesStore.saveLatestBlockHeaderTimestamp(latestBlockHeaderTimestamp);
       log.info("The latest block header timestamp has been modified as {}.",
           latestBlockHeaderTimestamp);
       spec.commandLine().getOut().format("The latest block header timestamp has been modified "
@@ -232,8 +233,7 @@ public class DBFork implements Callable<Integer> {
     if (forkConfig.hasPath(MAINTENANCE_INTERVAL)
         && forkConfig.getLong(MAINTENANCE_INTERVAL) > 0) {
       long maintenanceTimeInterval = forkConfig.getLong(MAINTENANCE_INTERVAL);
-      chainBaseManager.getDynamicPropertiesStore().saveMaintenanceTimeInterval(
-          maintenanceTimeInterval);
+      dynamicPropertiesStore.saveMaintenanceTimeInterval(maintenanceTimeInterval);
       log.info("The maintenance time interval has been modified as {}.",
           maintenanceTimeInterval);
       spec.commandLine().getOut().format("The maintenance time interval has been modified as %d.",
@@ -243,8 +243,7 @@ public class DBFork implements Callable<Integer> {
     if (forkConfig.hasPath(NEXT_MAINTENANCE_TIME)
         && forkConfig.getLong(NEXT_MAINTENANCE_TIME) > 0) {
       long nextMaintenanceTime = forkConfig.getLong(NEXT_MAINTENANCE_TIME);
-      chainBaseManager.getDynamicPropertiesStore().saveNextMaintenanceTime(
-          nextMaintenanceTime);
+      dynamicPropertiesStore.saveNextMaintenanceTime(nextMaintenanceTime);
       log.info("The next maintenance time has been modified as {}.",
           nextMaintenanceTime);
       spec.commandLine().getOut().format("The next maintenance time has been modified as %d.",
@@ -253,7 +252,7 @@ public class DBFork implements Callable<Integer> {
 
     spec.commandLine().getOut().println("The shadow fork has been completed.");
     log.info("The shadow fork has been completed.");
-    manager.close();
+    context.stop();
     context.close();
     return 0;
   }
