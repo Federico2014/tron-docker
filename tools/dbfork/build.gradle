@@ -19,6 +19,7 @@ repositories {
 
 tasks.named('jar') {
     enabled = false
+    dependsOn shadowJar
 }
 
 shadowJar {
@@ -60,7 +61,7 @@ jar {
 
 checkstyle {
     toolVersion = '8.41'
-    configFile = rootProject.file('config/checkstyle/checkstyle.xml')
+    configFile = rootProject.file('config/checkstyle/checkStyle.xml')
 }
 
 task checkstyleDBForkMain(type: Checkstyle) {
