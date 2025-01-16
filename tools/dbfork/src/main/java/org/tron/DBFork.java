@@ -13,22 +13,19 @@ import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.tron.common.application.TronApplicationContext;
+import org.apache.commons.lang3.ArrayUtils;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Commons;
-import org.tron.core.Constant;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.WitnessCapsule;
-import org.tron.core.config.DefaultConfig;
-import org.tron.core.config.args.Args;
-import org.tron.core.store.AccountStore;
-import org.tron.core.store.DynamicPropertiesStore;
-import org.tron.core.store.WitnessScheduleStore;
-import org.tron.core.store.WitnessStore;
+import org.tron.db.TronDatabase;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Permission;
-import org.tron.utils.FileUtils;
+
+import static org.tron.utils.Constant.*;
+
+import org.tron.utils.Utils;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
@@ -41,20 +38,10 @@ import picocli.CommandLine.Command;
         "n:Internal error: exception occurred,please check logs/dbfork.log"})
 public class DBFork implements Callable<Integer> {
 
-  private static final String WITNESS_KEY = "witnesses";
-  private static final String WITNESS_ADDRESS = "address";
-  private static final String WITNESS_URL = "url";
-  private static final String WITNESS_VOTE = "voteCount";
-  private static final String ACCOUNTS_KEY = "accounts";
-  private static final String ACCOUNT_NAME = "accountName";
-  private static final String ACCOUNT_TYPE = "accountType";
-  private static final String ACCOUNT_ADDRESS = "address";
-  private static final String ACCOUNT_BALANCE = "balance";
-  private static final String ACCOUNT_OWNER = "owner";
-  private static final String LATEST_BLOCK_TIMESTAMP = "latestBlockHeaderTimestamp";
-  private static final String MAINTENANCE_INTERVAL = "maintenanceTimeInterval";
-  private static final String NEXT_MAINTENANCE_TIME = "nextMaintenanceTime";
-  private static final int MAX_ACTIVE_WITNESS_NUM = 27;
+  private TronDatabase witnessStore;
+  private TronDatabase witnessScheduleStore;
+  private TronDatabase accountStore;
+  private TronDatabase dynamicPropertiesStore;
 
   @CommandLine.Spec
   CommandLine.Model.CommandSpec spec;
@@ -70,6 +57,11 @@ public class DBFork implements Callable<Integer> {
           + " Default: ${DEFAULT-VALUE}")
   private String config;
 
+  @CommandLine.Option(names = {"--db-engine"},
+      defaultValue = "leveldb",
+      description = "database engine: leveldb or rocksdb. Default: ${DEFAULT-VALUE}")
+  private String dbEngine;
+
   @CommandLine.Option(names = {"-r", "--retain-witnesses"},
       description = "retain the previous witnesses and active witnesses.")
   private boolean retain;
@@ -80,6 +72,22 @@ public class DBFork implements Callable<Integer> {
   public static void main(String[] args) {
     int exitCode = new CommandLine(new DBFork()).execute(args);
     System.exit(exitCode);
+  }
+
+  private void initStore() {
+    witnessStore = new TronDatabase(database, WITNESS_STORE, dbEngine);
+    witnessScheduleStore = new TronDatabase(database, WITNESS_SCHEDULE_STORE,
+        dbEngine);
+    accountStore = new TronDatabase(database, ACCOUNT_STORE, dbEngine);
+    dynamicPropertiesStore = new TronDatabase(database, DYNAMIC_PROPERTY_STORE,
+        dbEngine);
+  }
+
+  private void closeStore() {
+    witnessStore.close();
+    witnessScheduleStore.close();
+    accountStore.close();
+    dynamicPropertiesStore.close();
   }
 
   @Override
@@ -95,7 +103,7 @@ public class DBFork implements Callable<Integer> {
     }
     File tmp = Paths.get(database, "database", "tmp").toFile();
     if (tmp.exists()) {
-      FileUtils.deleteDir(tmp);
+      Utils.deleteDir(tmp);
     }
 
     Config forkConfig;
@@ -106,20 +114,13 @@ public class DBFork implements Callable<Integer> {
       throw new IOException("Fork config file [" + config + "] not exist!");
     }
 
-    Args.setParam(new String[]{"-d", database}, Constant.TESTNET_CONF);
-    TronApplicationContext context = new TronApplicationContext(DefaultConfig.class);
-    WitnessStore witnessStore = context.getBean(WitnessStore.class);
-    WitnessScheduleStore witnessScheduleStore = context.getBean(WitnessScheduleStore.class);
-    AccountStore accountStore = context.getBean(AccountStore.class);
-    DynamicPropertiesStore dynamicPropertiesStore = context.getBean(DynamicPropertiesStore.class);
+    initStore();
 
     if (!retain) {
       log.info("Erase the previous witnesses and active witnesses.");
       spec.commandLine().getOut().println("Erase the previous witnesses and active witnesses.");
-      witnessStore.getAllWitnesses().forEach(witnessCapsule -> {
-        witnessStore.delete(witnessCapsule.getAddress().toByteArray());
-      });
-      witnessScheduleStore.saveActiveWitnesses(new ArrayList<>());
+      witnessStore.reset();
+      witnessScheduleStore.reset();
     }
 
     if (forkConfig.hasPath(WITNESS_KEY)) {
@@ -135,6 +136,7 @@ public class DBFork implements Callable<Integer> {
         spec.commandLine().getOut().println("no witness listed in the config.");
       }
 
+      List<ByteString> witnessList = new ArrayList<>();
       witnesses.stream().forEach(
           w -> {
             ByteString address = ByteString.copyFrom(
@@ -147,22 +149,17 @@ public class DBFork implements Callable<Integer> {
             if (w.hasPath(WITNESS_URL)) {
               witness.setUrl(w.getString(WITNESS_URL));
             }
-            witnessStore.put(address.toByteArray(), witness);
+            witnessStore.put(address.toByteArray(), witness.getData());
+            witnessList.add(witness.getAddress());
           });
 
-      List<ByteString> witnessList = new ArrayList<>();
-      witnessStore.getAllWitnesses().forEach(witnessCapsule -> {
-        if (witnessCapsule.getIsJobs()) {
-          witnessList.add(witnessCapsule.getAddress());
-        }
-      });
       witnessList.sort(Comparator.comparingLong((ByteString b) ->
-          witnessStore.get(b.toByteArray()).getVoteCount())
+          new WitnessCapsule(witnessStore.get(b.toByteArray())).getVoteCount())
           .reversed()
           .thenComparing(Comparator.comparingInt(ByteString::hashCode).reversed()));
       List<ByteString> activeWitnesses = witnessList.subList(0,
           witnesses.size() >= MAX_ACTIVE_WITNESS_NUM ? MAX_ACTIVE_WITNESS_NUM : witnessList.size());
-      witnessScheduleStore.saveActiveWitnesses(activeWitnesses);
+      witnessScheduleStore.put(ACTIVE_WITNESSES, Utils.getActiveWitness(activeWitnesses));
       log.info("{} witnesses and {} active witnesses have been modified.",
           witnesses.size(), activeWitnesses.size());
       spec.commandLine().getOut().format("%d witnesses and %d active witnesses have been modified.",
@@ -186,7 +183,9 @@ public class DBFork implements Callable<Integer> {
       accounts.stream().forEach(
           a -> {
             byte[] address = Commons.decodeFromBase58Check(a.getString(ACCOUNT_ADDRESS));
-            AccountCapsule accountCapsule = accountStore.get(address);
+            byte[] value = accountStore.get(address);
+            AccountCapsule accountCapsule =
+                ArrayUtils.isEmpty(value) ? null : new AccountCapsule(value);
             if (Objects.isNull(accountCapsule)) {
               ByteString byteAddress = ByteString.copyFrom(
                   Commons.decodeFromBase58Check(a.getString(ACCOUNT_ADDRESS)));
@@ -213,7 +212,7 @@ public class DBFork implements Callable<Integer> {
               accountCapsule.updatePermissions(ownerPermission, null, null);
             }
 
-            accountStore.put(address, accountCapsule);
+            accountStore.put(address, accountCapsule.getData());
           });
       log.info("{} accounts have been modified.", accounts.size());
       spec.commandLine().getOut().format("%d accounts have been modified.", accounts.size())
@@ -223,7 +222,8 @@ public class DBFork implements Callable<Integer> {
     if (forkConfig.hasPath(LATEST_BLOCK_TIMESTAMP)
         && forkConfig.getLong(LATEST_BLOCK_TIMESTAMP) > 0) {
       long latestBlockHeaderTimestamp = forkConfig.getLong(LATEST_BLOCK_TIMESTAMP);
-      dynamicPropertiesStore.saveLatestBlockHeaderTimestamp(latestBlockHeaderTimestamp);
+      dynamicPropertiesStore
+          .put(LATEST_BLOCK_HEADER_TIMESTAMP, ByteArray.fromLong(latestBlockHeaderTimestamp));
       log.info("The latest block header timestamp has been modified as {}.",
           latestBlockHeaderTimestamp);
       spec.commandLine().getOut().format("The latest block header timestamp has been modified "
@@ -233,7 +233,8 @@ public class DBFork implements Callable<Integer> {
     if (forkConfig.hasPath(MAINTENANCE_INTERVAL)
         && forkConfig.getLong(MAINTENANCE_INTERVAL) > 0) {
       long maintenanceTimeInterval = forkConfig.getLong(MAINTENANCE_INTERVAL);
-      dynamicPropertiesStore.saveMaintenanceTimeInterval(maintenanceTimeInterval);
+      dynamicPropertiesStore
+          .put(MAINTENANCE_TIME_INTERVAL, ByteArray.fromLong(maintenanceTimeInterval));
       log.info("The maintenance time interval has been modified as {}.",
           maintenanceTimeInterval);
       spec.commandLine().getOut().format("The maintenance time interval has been modified as %d.",
@@ -243,17 +244,14 @@ public class DBFork implements Callable<Integer> {
     if (forkConfig.hasPath(NEXT_MAINTENANCE_TIME)
         && forkConfig.getLong(NEXT_MAINTENANCE_TIME) > 0) {
       long nextMaintenanceTime = forkConfig.getLong(NEXT_MAINTENANCE_TIME);
-      dynamicPropertiesStore.saveNextMaintenanceTime(nextMaintenanceTime);
+      dynamicPropertiesStore.put(MAINTENANCE_TIME, ByteArray.fromLong(nextMaintenanceTime));
       log.info("The next maintenance time has been modified as {}.",
           nextMaintenanceTime);
       spec.commandLine().getOut().format("The next maintenance time has been modified as %d.",
           nextMaintenanceTime).println();
     }
 
-    spec.commandLine().getOut().println("The shadow fork has been completed.");
-    log.info("The shadow fork has been completed.");
-    context.stop();
-    context.close();
+    closeStore();
     return 0;
   }
 }

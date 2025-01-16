@@ -43,6 +43,8 @@ Run the DBFork tool in the Toolkit to modify the related data. The available par
 - `-c | --config=<config>`: config the new witnesses, balances, etc for shadow
   fork. Default: fork.conf
 - `-d | --database-directory=<database>`: database directory path. Default: output-directory
+-  `--db-engine=<dbEngine>`:
+  database engine: leveldb or rocksdb. Default: leveldb
 - `-h | --help`
 - `-r | --retain-witnesses`: retain the previous witnesses and active witnesses. Default: false
 

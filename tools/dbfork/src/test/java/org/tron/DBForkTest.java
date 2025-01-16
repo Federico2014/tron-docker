@@ -13,55 +13,42 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.tron.common.application.TronApplicationContext;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Commons;
-import org.tron.consensus.ConsensusDelegate;
-import org.tron.core.ChainBaseManager;
-import org.tron.core.Constant;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.WitnessCapsule;
-import org.tron.core.config.DefaultConfig;
-import org.tron.core.config.args.Args;
-import org.tron.core.db.Manager;
+import org.tron.db.TronDatabase;
+import org.tron.utils.Utils;
 import picocli.CommandLine;
+import static org.tron.utils.Constant.*;
 
 public class DBForkTest {
 
-  private TronApplicationContext context;
-  private Manager manager;
-  private ChainBaseManager chainBaseManager;
-  private ConsensusDelegate consensusDelegate;
-
-  private static final String WITNESS_KEY = "witnesses";
-  private static final String WITNESS_ADDRESS = "address";
-  private static final String WITNESS_URL = "url";
-  private static final String WITNESS_VOTE = "voteCount";
-  private static final String ACCOUNTS_KEY = "accounts";
-  private static final String ACCOUNT_NAME = "accountName";
-  private static final String ACCOUNT_TYPE = "accountType";
-  private static final String ACCOUNT_ADDRESS = "address";
-  private static final String ACCOUNT_BALANCE = "balance";
-  private static final String ACCOUNT_OWNER = "owner";
-  private static final String LATEST_BLOCK_TIMESTAMP = "latestBlockHeaderTimestamp";
-  private static final String MAINTENANCE_INTERVAL = "maintenanceTimeInterval";
-  private static final String NEXT_MAINTENANCE_TIME = "nextMaintenanceTime";
+  private TronDatabase witnessStore;
+  private TronDatabase witnessScheduleStore;
+  private TronDatabase accountStore;
+  private TronDatabase dynamicPropertiesStore;
 
   @Rule
   public final TemporaryFolder folder = new TemporaryFolder();
   private String dbPath;
   private String forkPath;
+  private String dbEngine = "leveldb";
 
   public void init() {
-    Args.setParam(new String[]{"-d", dbPath}, Constant.TESTNET_CONF);
-    context = new TronApplicationContext(DefaultConfig.class);
-    manager = context.getBean(Manager.class);
-    chainBaseManager = manager.getChainBaseManager();
-    consensusDelegate = context.getBean(ConsensusDelegate.class);
+    witnessStore = new TronDatabase(dbPath, WITNESS_STORE, dbEngine);
+    witnessScheduleStore = new TronDatabase(dbPath, WITNESS_SCHEDULE_STORE,
+        dbEngine);
+    accountStore = new TronDatabase(dbPath, ACCOUNT_STORE, dbEngine);
+    dynamicPropertiesStore = new TronDatabase(dbPath, DYNAMIC_PROPERTY_STORE,
+        dbEngine);
   }
 
-  public void shutdown() {
-    context.close();
+  public void close() {
+    witnessStore.close();
+    witnessScheduleStore.close();
+    accountStore.close();
+    dynamicPropertiesStore.close();
   }
 
   @Test
@@ -103,14 +90,13 @@ public class DBForkTest {
             return address;
           }
       ).collect(Collectors.toList());
-      manager.getWitnessStore().getAllWitnesses().forEach(witnessCapsule -> {
-        Assert.assertTrue(witnessAddresses.contains(witnessCapsule.getAddress()));
-      });
+      Assert.assertArrayEquals(Utils.getActiveWitness(witnessAddresses),
+          witnessScheduleStore.get(ACTIVE_WITNESSES));
 
       witnesses.stream().forEach(
           w -> {
-            WitnessCapsule witnessCapsule = chainBaseManager.getWitnessStore().get(
-                Commons.decodeFromBase58Check(w.getString(WITNESS_ADDRESS)));
+            WitnessCapsule witnessCapsule = new WitnessCapsule(witnessStore.get(
+                Commons.decodeFromBase58Check(w.getString(WITNESS_ADDRESS))));
             if (w.hasPath(WITNESS_VOTE)) {
               Assert.assertEquals(w.getLong(WITNESS_VOTE), witnessCapsule.getVoteCount());
             }
@@ -135,7 +121,7 @@ public class DBForkTest {
       accounts.stream().forEach(
           a -> {
             byte[] address = Commons.decodeFromBase58Check(a.getString(ACCOUNT_ADDRESS));
-            AccountCapsule account = chainBaseManager.getAccountStore().get(address);
+            AccountCapsule account = new AccountCapsule(accountStore.get(address));
             Assert.assertNotNull(account);
             if (a.hasPath(ACCOUNT_BALANCE)) {
               Assert.assertEquals(a.getLong(ACCOUNT_BALANCE), account.getBalance());
@@ -158,21 +144,21 @@ public class DBForkTest {
     if (forkConfig.hasPath(LATEST_BLOCK_TIMESTAMP)) {
       long latestBlockHeaderTimestamp = forkConfig.getLong(LATEST_BLOCK_TIMESTAMP);
       Assert.assertEquals(latestBlockHeaderTimestamp,
-          chainBaseManager.getDynamicPropertiesStore().getLatestBlockHeaderTimestamp());
+          ByteArray.toLong(dynamicPropertiesStore.get(LATEST_BLOCK_HEADER_TIMESTAMP)));
     }
 
     if (forkConfig.hasPath(MAINTENANCE_INTERVAL)) {
       long maintenanceTimeInterval = forkConfig.getLong(MAINTENANCE_INTERVAL);
       Assert.assertEquals(maintenanceTimeInterval,
-          chainBaseManager.getDynamicPropertiesStore().getMaintenanceTimeInterval());
+          ByteArray.toLong(dynamicPropertiesStore.get(MAINTENANCE_TIME_INTERVAL)));
     }
 
     if (forkConfig.hasPath(NEXT_MAINTENANCE_TIME)) {
       long nextMaintenanceTime = forkConfig.getLong(NEXT_MAINTENANCE_TIME);
       Assert.assertEquals(nextMaintenanceTime,
-          chainBaseManager.getDynamicPropertiesStore().getNextMaintenanceTime());
+          ByteArray.toLong(dynamicPropertiesStore.get(MAINTENANCE_TIME)));
     }
-    shutdown();
+    close();
   }
 
   private static String getConfig(String config) {

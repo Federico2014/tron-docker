@@ -33,7 +33,7 @@ dependencies {
     // Use JUnit test framework.
     testImplementation 'junit:junit:4.13.2'
 
-    implementation('com.github.tronprotocol.java-tron:framework:GreatVoyage-v4.7.7') {
+    implementation('com.github.tronprotocol.java-tron:chainbase:GreatVoyage-v4.7.7') {
         exclude group: 'com.fasterxml.jackson', module: 'jackson-bom'
         exclude group: "pull-parser", module: "pull-parser" // https://www.jianshu.com/p/ef6936448aa6
     }
