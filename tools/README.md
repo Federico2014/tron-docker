@@ -1,4 +1,6 @@
 ## Database Fork Tool
+Database fork tool can help launch a private java-tron FullNode or network based on the state of public chain database to support shadow fork testing. 
+The public chain database can come from the Mainnet, Nile Testnet, or Shasta Testnet.
 
 Database fork tool provides the ability to modify the witnesses and other related data in the database to
 implement shadow fork testing, which includes:
@@ -8,6 +10,10 @@ implement shadow fork testing, which includes:
 - Modify the owner permission of existing account to simulate the account operation   
 - Set the new `latesteBlockHeaderTimestamp` to avoid the delay in producing blocks
 - Set the new `maintenanceTimeInterval` and `nextMaintenanceTime` optionally to facilitate testing
+
+After launching the shadow fork FullNode or network,
+developers can connect the node by [wallet-cli](https://tronprotocol.github.io/documentation-en/clients/wallet-cli/),
+[TronBox](https://developers.tron.network/reference/what-is-tronbox), [Tron-IDE](https://developers.tron.network/docs/tron-ide) or other tools, and execute the shadow fork testing.
 
 The whole procedure of shadow fork is described in the following figure:
 
@@ -30,7 +36,10 @@ node.shutdown = {
 #  BlockCount = 12 # block sync count after node start.
 }
 ```
-Please refer [Startup a fullnode](installing_javatron.md#startup-a-fullnode) to launch the FullNode and sync to the specified block number.
+
+Please refer [Startup a fullnode](installing_javatron.md#startup-a-fullnode) to launch the FullNode and sync to the specified block number. The FullNode will halt when it syncs to the target block height. 
+
+**Note**: `node.shutdown.BlockHeight` is the solidified block height. You can use the `/wallet/getnowblock` api to check the latest block height, which should be `node.shutdown.BlockHeight + 20` when the FullNode halts.
 
 If you need to perform multiple shadow fork test, you'd better backup the `output-directory` using the [Toolkit data copy](https://tronprotocol.github.io/documentation-en/using_javatron/toolkit/#data-copy) tool.
 ```shell
@@ -120,10 +129,13 @@ Launch the FullNode against the modified state. To launch the node smoothly, we 
 needSyncCheck = false
 minParticipation = 0
 minEffectiveConnection = 0
-node.p2p.version != 11111
+node.p2p.version = 202501 // arbitrary number except for 11111(mainnet) and 20180622(testnet)
 ```
 To isolate from the mainnet and other testnets, The `node.p2p.version` can be arbitrary number different from the mainnet and testnets.
 
 To produce the blocks, we also need to configure the private key of the witness and run the FullNode with the `--witness` parameter, please refer [startup a fullnode that produces blocks](https://tronprotocol.github.io/documentation-en/using_javatron/installing_javatron/#startup-a-fullnode-that-produces-blocks).
 
 If another node wants to join the shadow fork network, it needs to execute the above steps, or it copies the state data from the first shadow fork node directly. They need to configure the same `node.p2p.version` and add the `seed.node` in the config, then they can sync and produce blocks to form a local testnet.
+
+At last, developers can connect the node by [wallet-cli](https://tronprotocol.github.io/documentation-en/clients/wallet-cli/),
+[TronBox](https://developers.tron.network/reference/what-is-tronbox), [Tron-IDE](https://developers.tron.network/docs/tron-ide) or other tools, and execute the shadow fork testing.

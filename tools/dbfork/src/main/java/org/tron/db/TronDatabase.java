@@ -60,6 +60,14 @@ public class TronDatabase {
     return dbSource.getData(key);
   }
 
+  public void delete(byte[] key) {
+    if (Objects.isNull(key)) {
+      return;
+    }
+
+    dbSource.deleteData(key);
+  }
+
   /**
    * reset the database.
    */

@@ -116,11 +116,17 @@ public class DBFork implements Callable<Integer> {
 
     initStore();
 
+    log.info("Choose the db engine: {}.", dbEngine);
+    spec.commandLine().getOut().format("Choose the db engine: %s.", dbEngine).println();
+
     if (!retain) {
       log.info("Erase the previous witnesses and active witnesses.");
       spec.commandLine().getOut().println("Erase the previous witnesses and active witnesses.");
+      witnessScheduleStore.delete(ACTIVE_WITNESSES);
       witnessStore.reset();
-      witnessScheduleStore.reset();
+    } else {
+      log.warn("Keep the previous witnesses and active witnesses.");
+      spec.commandLine().getOut().println("Keep the previous witnesses and active witnesses.");
     }
 
     if (forkConfig.hasPath(WITNESS_KEY)) {
