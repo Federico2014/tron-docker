@@ -12,7 +12,7 @@ implement shadow fork testing, which includes:
 - Set the new `maintenanceTimeInterval` and `nextMaintenanceTime` optionally to facilitate testing
 
 After launching the shadow fork FullNode or network,
-developers can connect the node by [wallet-cli](https://tronprotocol.github.io/documentation-en/clients/wallet-cli/),
+developers can connect and interact with the node by [wallet-cli](https://tronprotocol.github.io/documentation-en/clients/wallet-cli/),
 [TronBox](https://developers.tron.network/reference/what-is-tronbox), [Tron-IDE](https://developers.tron.network/docs/tron-ide) or other tools, and execute the shadow fork testing.
 
 The whole procedure of shadow fork is described in the following figure:
@@ -20,7 +20,7 @@ The whole procedure of shadow fork is described in the following figure:
 ![image](./shadow-fork.png)
 
 ### Obtain the state data
-To use the DBFork tool, you need to obtain the state data of the main chain first.There are three possible ways:
+To use the DBFork tool, we need to obtain the state data of the public chain first. There are three possible ways:
 
 - Download the [Lite FullNode](https://tronprotocol.github.io/documentation-en/using_javatron/backup_restore/#lite-fullnode-data-snapshot) data snapshot;
 
@@ -37,11 +37,11 @@ node.shutdown = {
 }
 ```
 
-Please refer [Startup a fullnode](installing_javatron.md#startup-a-fullnode) to launch the FullNode and sync to the specified block number. The FullNode will halt when it syncs to the target block height. 
+Please refer [Startup a fullnode](https://tronprotocol.github.io/documentation-en/using_javatron/installing_javatron/#startup-a-fullnode) to launch the FullNode and sync to the specified block number. The FullNode will halt when it syncs to the target block height. 
 
 **Note**: `node.shutdown.BlockHeight` is the solidified block height. You can use the `/wallet/getnowblock` api to check the latest block height, which should be `node.shutdown.BlockHeight + 20` when the FullNode halts.
 
-If you need to perform multiple shadow fork test, you'd better backup the `output-directory` using the [Toolkit data copy](https://tronprotocol.github.io/documentation-en/using_javatron/toolkit/#data-copy) tool.
+If you need to perform multiple shadow fork tests, you'd better backup the `output-directory` using the [Toolkit data copy](https://tronprotocol.github.io/documentation-en/using_javatron/toolkit/#data-copy) tool.
 ```shell
 java -jar Toolkit.jar db copy output-directory output-directory-bak
 ```
@@ -137,5 +137,5 @@ To produce the blocks, we also need to configure the private key of the witness 
 
 If another node wants to join the shadow fork network, it needs to execute the above steps, or it copies the state data from the first shadow fork node directly. They need to configure the same `node.p2p.version` and add the `seed.node` in the config, then they can sync and produce blocks to form a local testnet.
 
-At last, developers can connect the node by [wallet-cli](https://tronprotocol.github.io/documentation-en/clients/wallet-cli/),
+At last, developers can connect and interact with the node by [wallet-cli](https://tronprotocol.github.io/documentation-en/clients/wallet-cli/),
 [TronBox](https://developers.tron.network/reference/what-is-tronbox), [Tron-IDE](https://developers.tron.network/docs/tron-ide) or other tools, and execute the shadow fork testing.
