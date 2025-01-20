@@ -17,7 +17,7 @@ services:
       - ../conf:/java-tron/conf
       - ./datadir:/java-tron/data # mount a local directory to make the blocks data persistent.
     command: > 
-        -jvm "{-Xmx10g}"
+        -jvm "{-Xmx16g -Xms12g -XX:+UseConcMarkSweepGC}"
         -c /java-tron/conf/private_net_config_witness1.conf
         -d /java-tron/data 
         -w
@@ -34,7 +34,7 @@ services:
 #    volumes:
 #      - ../conf:/java-tron/conf
 #    command: >
-#      -jvm "{-Xmx10g}"
+#      -jvm "{-Xmx16g -Xms12g -XX:+UseConcMarkSweepGC}"
 #      -c /java-tron/conf/private_net_config_witness2.conf
 #      -w
 
@@ -50,7 +50,7 @@ services:
     volumes:
       - ../conf:/java-tron/conf
     command: >
-      -jvm "{-Xmx10g}"
+      -jvm "{-Xmx16g -Xms12g -XX:+UseConcMarkSweepGC}"
       -c /java-tron/conf/private_net_config_others.conf
 
 #  tron_node2:
@@ -65,7 +65,7 @@ services:
 #    volumes:
 #      - ../conf:/java-tron/conf
 #    command: >
-#      -jvm "{-Xmx10g}"
+#      -jvm "{-Xmx16g -Xms12g -XX:+UseConcMarkSweepGC}"
 #      -c /java-tron/conf/private_net_config_others.conf
 
 networks:
