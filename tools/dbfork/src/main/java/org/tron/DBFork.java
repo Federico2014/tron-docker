@@ -31,7 +31,7 @@ import picocli.CommandLine.Command;
 
 @Slf4j(topic = "dbfork")
 @Command(name = "dbfork", mixinStandardHelpOptions = true, version = "DBFork 1.0",
-    description = "Modify the state data for shadow fork testing.",
+    description = "Modify the database of java-tron for shadow fork testing.",
     exitCodeListHeading = "Exit Codes:%n",
     exitCodeList = {
         "0:Successful",
@@ -48,7 +48,7 @@ public class DBFork implements Callable<Integer> {
 
   @CommandLine.Option(names = {"-d", "--database-directory"},
       defaultValue = "output-directory",
-      description = "database directory path. Default: ${DEFAULT-VALUE}")
+      description = "java-tron database directory path. Default: ${DEFAULT-VALUE}")
   private String database;
 
   @CommandLine.Option(names = {"-c", "--config"},
@@ -116,8 +116,8 @@ public class DBFork implements Callable<Integer> {
 
     initStore();
 
-    log.info("Choose the db engine: {}.", dbEngine);
-    spec.commandLine().getOut().format("Choose the db engine: %s.", dbEngine).println();
+    log.info("Choose the DB engine: {}.", dbEngine);
+    spec.commandLine().getOut().format("Choose the DB engine: %s.", dbEngine).println();
 
     if (!retain) {
       log.info("Erase the previous witnesses and active witnesses.");

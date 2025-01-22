@@ -51,13 +51,13 @@ java -jar Toolkit.jar db copy output-directory output-directory-bak
 Run the DBFork tool in the Toolkit to modify the related data. The available parameters are:
 - `-c | --config=<config>`: config the new witnesses, balances, etc for shadow
   fork. Default: fork.conf
-- `-d | --database-directory=<database>`: database directory path. Default: output-directory
+- `-d | --database-directory=<database>`: java-tron database directory path. Default: output-directory
 -  `--db-engine=<dbEngine>`:
   database engine: leveldb or rocksdb. Default: leveldb
 - `-h | --help`
 - `-r | --retain-witnesses`: retain the previous witnesses and active witnesses. Default: false
 
-The example of `fork.config` can be:
+The example of `fork.conf` can be:
 
 ```conf
 witnesses = [
@@ -106,6 +106,9 @@ For the `accounts`, we can configure the following properties:
 - `balance`: set the balance of the account 
 - `owner`: set the owner permission of the account
 
+*Note*: If you need to add new address, you can use the [tronlink](https://www.tronlink.org/) or [wallet-cli](https://github.com/tronprotocol/wallet-cli?tab=readme-ov-file#account-related-commands) to 
+genrate the private key and address.
+
 set `latestBlockHeaderTimestamp` as current millisecond time to avoid the delay in producing blocks.
 
 set `maintenanceTimeInterval` and `nextMaintenanceTime` optionally to facilitate testing.
@@ -127,13 +130,19 @@ java -jar dbfork/build/libs/dbfork.jar -c fork.conf -d output-directory
 Launch the FullNode against the modified state. To launch the node smoothly, we may need to change some parameters in the [config](https://github.com/tronprotocol/tron-deployment/blob/master/main_net_config.conf):
 ```config
 needSyncCheck = false
-minParticipation = 0
+minParticipationRate = 0
 minEffectiveConnection = 0
 node.p2p.version = 202501 // arbitrary number except for 11111(mainnet) and 20180622(testnet)
 ```
+*Note*: please remember to comment `node.shutdown.BlockHeight` in the config if you have modified it previously.
+
 To isolate from the mainnet and other testnets, The `node.p2p.version` can be arbitrary number different from the mainnet and testnets.
 
-To produce the blocks, we also need to configure the private key of the witness and run the FullNode with the `--witness` parameter, please refer [startup a fullnode that produces blocks](https://tronprotocol.github.io/documentation-en/using_javatron/installing_javatron/#startup-a-fullnode-that-produces-blocks).
+To produce the blocks, we also need to configure the private keys of the witness addresses in the config and run the FullNode with the `--witness` parameter, please refer [startup a fullnode that produces blocks](https://tronprotocol.github.io/documentation-en/using_javatron/installing_javatron/#startup-a-fullnode-that-produces-blocks).
+```config
+localwitness = [
+]
+```
 
 If another node wants to join the shadow fork network, it needs to execute the above steps, or it copies the state data from the first shadow fork node directly. They need to configure the same `node.p2p.version` and add the `seed.node` in the config, then they can sync and produce blocks to form a local testnet.
 
