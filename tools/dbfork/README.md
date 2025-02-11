@@ -86,6 +86,11 @@ accounts = [
   {
     address = "TLLM21wteSPs4hKjbxgmH1L6poyMjeTbHm"
     owner = "TS1hu4ZCcwBFYpQqUGoWy1GWBzamqxiT5W"
+  },
+  {
+    address = "TRY18iTFy6p8yhWiCt1dhd2gz2c15ungq3"
+    trc10Id = "1000001"
+    trc10Balance = 100000000
   }
 ]
 
@@ -105,6 +110,8 @@ For the `accounts`, we can configure the following properties:
 - `accountType`: set the account type, namely `Normal`, `AssetIssue` and `Contract`
 - `balance`: set the balance of the account
 - `owner`: set the owner permission of the account
+- `trc10Id`: the TRC10 token ID
+- `trc10Balance`: change the balance of `trc10Id`
 
 *Note*: If you need to add new address, you can use the [tronlink](https://www.tronlink.org/) or [wallet-cli](https://github.com/tronprotocol/wallet-cli?tab=readme-ov-file#account-related-commands) to
 genrate the private key and address.
