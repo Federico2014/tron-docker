@@ -121,7 +121,7 @@ public class DBFork implements Callable<Integer> {
     File dbFile = Paths.get(database).toFile();
     if (!dbFile.exists() || !dbFile.isDirectory()) {
       log.error("Database [" + database + "] not exists!");
-      spec.commandLine().getErr().format("Database [" + database + "] not exist!").println();
+      spec.commandLine().getErr().format("Database [" + database + "] not exists!").println();
       System.exit(-1);
     }
     File tmp = Paths.get(database, "database", "tmp").toFile();
@@ -135,7 +135,7 @@ public class DBFork implements Callable<Integer> {
       forkConfig = ConfigFactory.parseFile(Paths.get(config).toFile());
     } else {
       log.error("Fork config file [" + config + "] not exists!");
-      spec.commandLine().getErr().format("Fork config file [" + config + "] not exist!").println();
+      spec.commandLine().getErr().format("Fork config file [" + config + "] not exists!").println();
       System.exit(-1);
     }
 
