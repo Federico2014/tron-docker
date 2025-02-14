@@ -23,7 +23,7 @@ tasks.named('jar') {
 }
 
 shadowJar {
-    archiveBaseName.set('dbfork')
+    archiveBaseName.set('stresstest')
     archiveClassifier.set('')
     archiveVersion.set('')
     mergeServiceFiles()
@@ -32,14 +32,13 @@ shadowJar {
 dependencies {
     // Use JUnit test framework.
     testImplementation 'junit:junit:4.13.2'
-
     implementation('com.github.tronprotocol.java-tron:chainbase:GreatVoyage-v4.7.7') {
         exclude group: 'com.fasterxml.jackson', module: 'jackson-bom'
         exclude group: "pull-parser", module: "pull-parser"
     }
     implementation platform('com.fasterxml.jackson:jackson-bom:2.14.0')
-    implementation group: 'info.picocli', name: 'picocli', version: '4.6.3'
 
+    implementation group: 'info.picocli', name: 'picocli', version: '4.6.3'
     compileOnly 'org.projectlombok:lombok:1.18.12'
     annotationProcessor 'org.projectlombok:lombok:1.18.12'
     testCompileOnly 'org.projectlombok:lombok:1.18.12'
@@ -48,13 +47,13 @@ dependencies {
 
 application {
     // Define the main class for the application.
-    mainClass = 'org.tron.DBFork'
+    mainClass = 'org.tron.StressTest'
 }
 
 jar {
     manifest {
         attributes(
-                'Main-Class': 'org.tron.DBFork'
+                'Main-Class': 'org.tron.StressTest'
         )
     }
 }
@@ -64,7 +63,7 @@ checkstyle {
     configFile = file("../../conf/checkstyle/checkStyle.xml")
 }
 
-task checkstyleDBForkMain(type: Checkstyle) {
+task checkstylekStressMain(type: Checkstyle) {
     source 'src/main/java'
     include '**/*.java'
     exclude '**/generated/**'
@@ -72,7 +71,7 @@ task checkstyleDBForkMain(type: Checkstyle) {
     ignoreFailures = false
 }
 
-task checkstyleDBForkTest(type: Checkstyle) {
+task checkstyleStressTest(type: Checkstyle) {
     source 'src/test/java'
     include '**/*.java'
     exclude '**/generated/**'
@@ -80,4 +79,4 @@ task checkstyleDBForkTest(type: Checkstyle) {
     ignoreFailures = false
 }
 
-check.dependsOn checkstyleDBForkMain, checkstyleDBForkTest
+check.dependsOn checkstylekStressMain, checkstyleStressTest
