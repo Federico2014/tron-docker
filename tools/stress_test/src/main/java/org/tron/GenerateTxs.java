@@ -6,13 +6,13 @@ import java.io.File;
 import java.nio.file.Paths;
 import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
+import org.tron.trxs.ReplayTransactionGenerator;
+import org.tron.trxs.TransactionConfig;
 import org.tron.trxs.TransactionGenerator;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
-import static org.tron.utils.Constant.*;
-
-@Slf4j
+@Slf4j(topic = "generate")
 @Command(name = "generate",
     description = "Generate the transactions and store them for stress test.",
     exitCodeListHeading = "Exit Codes:%n",
@@ -22,7 +22,7 @@ import static org.tron.utils.Constant.*;
 public class GenerateTxs implements Callable<Integer> {
 
   @CommandLine.Spec
-  CommandLine.Model.CommandSpec spec;
+  public static CommandLine.Model.CommandSpec spec;
 
   @CommandLine.Option(names = {"-c", "--config"},
       defaultValue = "stress.conf",
@@ -33,7 +33,7 @@ public class GenerateTxs implements Callable<Integer> {
   @CommandLine.Option(names = {"-h", "--help"})
   private boolean help;
 
-  private static Integer singleTaskTransactionCount = 800000;
+  public static Integer singleTaskTransactionCount = 800000;
   private static Integer dispatchCount;
 
   @Override
@@ -53,21 +53,33 @@ public class GenerateTxs implements Callable<Integer> {
           .println();
       System.exit(-1);
     }
+    TransactionConfig.initParams(stressConfig);
+    TransactionConfig config = TransactionConfig.getInstance();
 
-    int totalTxsCnt = 0;
-    if (stressConfig.hasPath(TOTAL_TXS_CNT) && stressConfig.getInt(TOTAL_TXS_CNT) > 0) {
-      totalTxsCnt = stressConfig.getInt(TOTAL_TXS_CNT);
-    } else {
-      log.error("totalTxsCnt parameter is not valid!");
-      spec.commandLine().getErr().format("totalTxsCnt parameter is not valid!").println();
-      System.exit(-1);
+    if (config.isGenerate()) {
+      dispatchCount = config.getTotalTrxCnt() / singleTaskTransactionCount;
+      log.info("start to generate the transactions");
+      spec.commandLine().getOut().println("start to generate the transactions");
+
+      for (int i = 0; i <= dispatchCount; i++) {
+        new TransactionGenerator(
+            i == dispatchCount ? config.getTotalTrxCnt() % singleTaskTransactionCount
+                : singleTaskTransactionCount, i).start();
+      }
+
+      log.info("finish generating the transactions");
+      spec.commandLine().getOut().println("finish generating the transactions");
     }
 
-    dispatchCount = totalTxsCnt/singleTaskTransactionCount;
-    log.info("start generate the transactions");
-    spec.commandLine().getOut().println("start generate the transactions");
+    if (config.isRelay()) {
+      log.info("start to relay the transactions");
+      spec.commandLine().getOut().println("start to relay the transactions");
 
-    TransactionGenerator.calculateRanges(stressConfig.getConfig(TRX_TYPE));
+      new ReplayTransactionGenerator().start();
+
+      log.info("finish relaying the transactions");
+      spec.commandLine().getOut().println("finish relaying the transactions");
+    }
 
     return 0;
   }

@@ -32,11 +32,26 @@ shadowJar {
 dependencies {
     // Use JUnit test framework.
     testImplementation 'junit:junit:4.13.2'
-    implementation('com.github.tronprotocol.java-tron:chainbase:GreatVoyage-v4.7.7') {
-        exclude group: 'com.fasterxml.jackson', module: 'jackson-bom'
-        exclude group: "pull-parser", module: "pull-parser"
-    }
-    implementation platform('com.fasterxml.jackson:jackson-bom:2.14.0')
+//    implementation('com.github.tronprotocol.java-tron:protocol:GreatVoyage-v4.7.7')
+//        exclude group: 'com.fasterxml.jackson', module: 'jackson-bom'
+//        exclude group: "pull-parser", module: "pull-parser"
+//    }
+//    implementation platform('com.fasterxml.jackson:jackson-bom:2.14.0')
+    implementation "com.google.guava:guava:33.0.0-jre"
+    implementation "io.grpc:grpc-netty-shaded:1.60.0"
+    implementation "io.grpc:grpc-netty:1.60.0"
+    implementation "io.grpc:grpc-okhttp:1.60.0"
+    implementation "io.grpc:grpc-protobuf:1.60.0"
+    implementation "io.grpc:grpc-stub:1.60.0"
+    implementation "com.google.protobuf:protobuf-java-util:3.25.5"
+    implementation "org.bouncycastle:bcprov-jdk18on:1.78.1"
+    implementation "io.vertx:vertx-core:4.5.10"
+    implementation "io.netty:netty-all:4.1.100.Final"
+    implementation("io.github.317787106:trident:0.9.2")
+    implementation group: 'com.typesafe', name: 'config', version: '1.3.2'
+//    implementation 'com.google.guava:guava:32.0.1-jre'
+    implementation group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+    implementation group: 'org.slf4j', name: 'jcl-over-slf4j', version: '1.7.25'
 
     implementation group: 'info.picocli', name: 'picocli', version: '4.6.3'
     compileOnly 'org.projectlombok:lombok:1.18.12'

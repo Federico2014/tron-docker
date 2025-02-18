@@ -2,7 +2,6 @@ package org.tron.trxs;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.tron.core.net.message.MessageTypes;
 
 public enum TransactionType {
   TRANSFER("transfer"),
