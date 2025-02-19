@@ -1,9 +1,10 @@
 package org.tron.trxs;
 
+import static org.tron.trxs.BroadcastGenerate.getID;
+
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -18,14 +19,13 @@ import org.tron.trident.proto.Chain.Transaction;
 @Slf4j(topic = "broadcastRelay")
 public class BroadcastRelay {
 
-  private static volatile boolean isFinishSend = false;
-  public static long trxCount = 0;
-  private static ConcurrentLinkedQueue<Transaction> transactionIDs = new ConcurrentLinkedQueue<>();
+  private volatile boolean isFinishSend = false;
+  private ConcurrentLinkedQueue<Transaction> transactionIDs = new ConcurrentLinkedQueue<>();
 
   private ManagedChannel channelFull = null;
   private WalletGrpc.WalletBlockingStub blockingStubFull = null;
 
-  private static ExecutorService saveTransactionIDPool = Executors
+  private ExecutorService saveTransactionIDPool = Executors
       .newFixedThreadPool(1, r -> new Thread(r, "save-relay-transaction-id"));
 
   public BroadcastRelay(TransactionConfig config) {
@@ -35,106 +35,76 @@ public class BroadcastRelay {
     blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
   }
 
-  public void broadcastTransactions() {
-    isFinishSend = false;
+  public void saveTransactionID() {
     saveTransactionIDPool.submit(() -> {
-      BufferedWriter bufferedWriter = null;
       int count = 0;
-      try {
-        bufferedWriter = new BufferedWriter(
-            new FileWriter("relay-transactionsID" + ".csv"));
-
-        while (!isFinishSend) {
-          count++;
-
-          if (transactionIDs.isEmpty()) {
-            try {
-              Thread.sleep(100);
-              continue;
-            } catch (InterruptedException e) {
-              System.out.println(e);
-            }
-          }
-
-          Transaction transaction = transactionIDs.peek();
-          try {
-            Sha256Hash id = BroadcastGen.getID(transaction);
-            bufferedWriter.write(id.toString());
-            bufferedWriter.newLine();
-            if (count % 1000 == 0) {
-              bufferedWriter.flush();
-              System.out.println("transaction id size: " + transactionIDs.size());
-            }
-            transactionIDs.poll();
-          } catch (IOException e) {
-            e.printStackTrace();
-          }
-        }
+      try (
+          FileWriter writer = new FileWriter("relay-transactionsID.csv");
+          BufferedWriter bufferedWriter = new BufferedWriter(writer)
+      ) {
+        processTransactionID(count, bufferedWriter);
       } catch (IOException e) {
         e.printStackTrace();
-      } finally {
-        if (bufferedWriter != null) {
-          try {
-            bufferedWriter.flush();
-            bufferedWriter.close();
-          } catch (IOException e) {
-            e.printStackTrace();
-          }
-        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
       }
     });
+  }
 
+  private void processTransactionID(int count, BufferedWriter bufferedWriter)
+      throws InterruptedException, IOException {
+    while (!isFinishSend || !transactionIDs.isEmpty()) {
+      count++;
+      if (transactionIDs.isEmpty()) {
+        Thread.sleep(100);
+      }
+
+      Transaction transaction = transactionIDs.peek();
+      Sha256Hash id = getID(transaction);
+      bufferedWriter.write(id.toString());
+      bufferedWriter.newLine();
+      if (count % 1000 == 0) {
+        bufferedWriter.flush();
+        log.info("transaction id size: %d", transactionIDs.size());
+      }
+      transactionIDs.poll();
+    }
+  }
+
+  public void broadcastTransactions() {
+    long trxCount = 0;
+    saveTransactionID();
     long startTime = System.currentTimeMillis();
-    FileInputStream fis = null;
     log.info("Start to process relay transaction broadcast task");
-    try {
-      isFinishSend = false;
-      File f = new File("relay-transaction" + ".csv");
-      fis = new FileInputStream(f);
+    try (FileInputStream fis = new FileInputStream("relay-transaction.csv")) {
       Transaction transaction;
-//        Integer i = 0;
       int cnt = 0;
+      long startTps = System.currentTimeMillis();
+      long endTps;
       while ((transaction = Transaction.parseDelimitedFrom(fis)) != null) {
         trxCount++;
-//          log.info(i++ + "   " + transaction.toString());
-        while (true) {
-          if (cnt <= 100_000) {
-            blockingStubFull.broadcastTransaction(transaction);
-            transactionIDs.add(transaction);
-            cnt++;
-            break;
-          } else {
-            cnt = 0;
-            Thread.sleep(500);
-            break;
+        if (cnt > TransactionConfig.getInstance().getTps()) {
+          endTps = System.currentTimeMillis();
+          if (endTps - startTps < 1000) {
+            Thread.sleep(1000 - (endTps - startTps));
           }
+          cnt = 0;
+          startTps = System.currentTimeMillis();
+        } else {
+          blockingStubFull.broadcastTransaction(transaction);
+          transactionIDs.add(transaction);
+          cnt++;
         }
       }
 
-      int emptyCount = 0;
-      while (true) {
-        if (transactionIDs.isEmpty()) {
-          if (emptyCount == 5) {
-            Thread.sleep(200);
-            isFinishSend = true;
-            break;
-          } else {
-            emptyCount++;
-          }
-        } else {
-          emptyCount = 0;
-        }
+      isFinishSend = true;
+      while (!transactionIDs.isEmpty()) {
         Thread.sleep(200);
       }
-    } catch (Exception e) {
+    } catch (IOException e) {
       e.printStackTrace();
-    } finally {
-      try {
-        log.info("Finishing processing relay transaction broadcast task");
-        fis.close();
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
+    } catch (InterruptedException e ) {
+      Thread.currentThread().interrupt();
     }
 
     long cost = System.currentTimeMillis() - startTime;

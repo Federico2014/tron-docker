@@ -37,7 +37,7 @@ public class GenerateTxs implements Callable<Integer> {
   private static Integer dispatchCount;
 
   @Override
-  public Integer call() throws Exception {
+  public Integer call() {
     if (help) {
       spec.commandLine().usage(System.out);
       return 0;
