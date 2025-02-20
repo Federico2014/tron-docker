@@ -22,7 +22,7 @@ public class Constant {
   public static final String RELAY_START_NUMBER = "relay.startNumber";
   public static final String RELAY_END_NUMBER = "relay.endNumber";
 
-  public static final String BROADCAST_GEN = "broadcastGen";
+  public static final String BROADCAST_GEN = "broadcastGenerate";
   public static final String BROADCAST_RELAY = "broadcastRelay";
 
 }

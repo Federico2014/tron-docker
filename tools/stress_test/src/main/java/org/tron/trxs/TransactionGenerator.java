@@ -50,11 +50,11 @@ public class TransactionGenerator {
     TransactionType type = config.findTransactionType(randomInt);
     switch (type) {
       case TRANSFER:
-        return Transaction.newBuilder().build();
+        return TransactionFactory.createTransferTrx();
       case TRANSFER_TRC10:
-        return Transaction.newBuilder().build();
+        return TransactionFactory.createTransferTrc10();
       case TRANSFER_TRC20:
-        return Transaction.newBuilder().build();
+        return TransactionFactory.createTransferTrc20();
       default:
         return null;
     }

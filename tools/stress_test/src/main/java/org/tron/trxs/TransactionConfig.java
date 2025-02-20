@@ -8,8 +8,10 @@ import java.util.Map;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.bouncycastle.util.encoders.Hex;
 import org.tron.trident.abi.datatypes.Address;
 import org.tron.trident.core.key.KeyPair;
+import org.tron.trident.utils.Base58Check;
 
 import static org.tron.utils.Constant.*;
 
@@ -47,11 +49,11 @@ public class TransactionConfig {
 
   @Setter
   @Getter
-  private Address fromAddress;
+  private String fromAddress;
 
   @Setter
   @Getter
-  private Address toAddress;
+  private String toAddress;
 
   @Setter
   @Getter
@@ -59,7 +61,8 @@ public class TransactionConfig {
 
   @Setter
   @Getter
-  private Address trc20ContractAddress =  new Address("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
+  private String trc20ContractAddress = Hex
+      .toHexString(Base58Check.base58ToBytes("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"));
 
   @Setter
   @Getter
@@ -136,19 +139,20 @@ public class TransactionConfig {
     }
     INSTANCE.setPrivateKey(config.getString(PRIVATE_KEY));
     KeyPair keyPair = new KeyPair(INSTANCE.getPrivateKey());
-    INSTANCE.setFromAddress(new Address(keyPair.toHexAddress()));
+    INSTANCE.setFromAddress(keyPair.toHexAddress());
 
     if (!config.hasPath(TO_ADDRESS)) {
       throw new IllegalArgumentException("no valid toAddress.");
     }
-    INSTANCE.setToAddress(new Address(config.getString(TO_ADDRESS)));
+    INSTANCE.setToAddress(Hex.toHexString(Base58Check.base58ToBytes(config.getString(TO_ADDRESS))));
 
     if (config.hasPath(TRC10_ID)) {
       INSTANCE.setTrc10Id(config.getString(TRC10_ID));
     }
 
     if (config.hasPath(TRC20_CONTRACT_ADDRESS)) {
-      INSTANCE.setTrc20ContractAddress(new Address(config.getString(TRC20_CONTRACT_ADDRESS)));
+      INSTANCE.setTrc20ContractAddress(
+          Hex.toHexString(Base58Check.base58ToBytes(config.getString(TRC20_CONTRACT_ADDRESS))));
     }
 
     if (config.hasPath(TRANSFER_AMOUNT) && config.getInt(TRANSFER_AMOUNT) > 0) {

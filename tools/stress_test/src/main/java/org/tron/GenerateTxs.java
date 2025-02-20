@@ -8,6 +8,7 @@ import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.trxs.ReplayTransactionGenerator;
 import org.tron.trxs.TransactionConfig;
+import org.tron.trxs.TransactionFactory;
 import org.tron.trxs.TransactionGenerator;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -60,7 +61,7 @@ public class GenerateTxs implements Callable<Integer> {
       dispatchCount = config.getTotalTrxCnt() / singleTaskTransactionCount;
       log.info("start to generate the transactions");
       spec.commandLine().getOut().println("start to generate the transactions");
-
+      TransactionFactory.init();
       for (int i = 0; i <= dispatchCount; i++) {
         new TransactionGenerator(
             i == dispatchCount ? config.getTotalTrxCnt() % singleTaskTransactionCount
