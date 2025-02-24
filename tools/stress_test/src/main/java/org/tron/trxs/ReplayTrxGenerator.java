@@ -1,7 +1,5 @@
 package org.tron.trxs;
 
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -13,15 +11,14 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.tron.trident.api.GrpcAPI;
-import org.tron.trident.api.GrpcAPI.EmptyMessage;
-import org.tron.trident.api.WalletGrpc;
 import org.tron.trident.core.ApiWrapper;
 import org.tron.trident.core.exceptions.IllegalException;
-import org.tron.trident.proto.Chain.Block;
 import org.tron.trident.proto.Chain.Transaction;
-import org.tron.trident.proto.Response.BlockList;
+import org.tron.trident.proto.Response.BlockExtention;
+import org.tron.trident.proto.Response.BlockListExtention;
+import org.tron.trident.proto.Response.TransactionExtention;
 
 @Slf4j(topic = "relayTrxGenerator")
 public class ReplayTrxGenerator {
@@ -31,8 +28,7 @@ public class ReplayTrxGenerator {
   private String outputFile;
   private String outputDir = "stress-test-output";
 
-  private ManagedChannel channelFull;
-  private WalletGrpc.WalletBlockingStub blockingStubFull;
+  private ApiWrapper apiWrapper;
   public static List<Transaction> transactionsOfReplay = new ArrayList<>();
   public static AtomicInteger indexOfReplayTransaction = new AtomicInteger();
   private int count = 0;
@@ -57,25 +53,9 @@ public class ReplayTrxGenerator {
     this.outputFile = outputDir + File.separator + outputFile;
     this.startNum = TrxConfig.getInstance().getRelayStartNumber();
     this.endNum = TrxConfig.getInstance().getRelayEndNumber();
-
-    System.out.println("relay url: " + TrxConfig.getInstance().getRelayUrl());
-    channelFull = ManagedChannelBuilder
-        .forTarget(TrxConfig.getInstance().getRelayUrl())
-        .usePlaintext()
-        .build();
-    this.blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
-//    Block block = blockingStubFull.getNowBlock(EmptyMessage.newBuilder().build());
-//    System.out.println("blockNumber: " + block.getBlockHeader().getRawData().getNumber());
-
-    ApiWrapper apiWrapper2 = ApiWrapper.ofMainnet(TrxConfig.getInstance().getPrivateKey());
-    Block block3 = apiWrapper2.getNowBlock();
-    System.out.println("blockNumber2: " + block3.getBlockHeader().getRawData().getNumber());
-
-    ApiWrapper apiWrapper = new ApiWrapper(TrxConfig.getInstance().getRelayUrl(),
+    this.apiWrapper = new ApiWrapper(TrxConfig.getInstance().getRelayUrl(),
         TrxConfig.getInstance().getRelayUrl(),
         TrxConfig.getInstance().getPrivateKey());
-    Block block2 = apiWrapper.getNowBlock();
-    System.out.println("blockNumber2: " + block2.getBlockHeader().getRawData().getNumber());
   }
 
   public ReplayTrxGenerator() throws IllegalException {
@@ -98,38 +78,47 @@ public class ReplayTrxGenerator {
     long count = countDownLatch.getCount();
     if (count % 100 == 0) {
       fos.flush();
-      log.info("relay trx task, remain: %d, pending size: %d",
-          countDownLatch.getCount(), transactions.size());
+      log.info(String.format("relay trx task, remain: %d, pending size: %d",
+          countDownLatch.getCount(), transactions.size()));
     }
 
     countDownLatch.countDown();
   }
 
   public void start() {
-    GrpcAPI.BlockLimit.Builder builder = GrpcAPI.BlockLimit.newBuilder();
-    BlockList blockList;
-    Optional<BlockList> result;
-
-    int step = 5;
     log.info(
         String.format("extract the transaction from block: %s to block: %s.", startNum, endNum));
-    for (int i = (int) startNum; i < endNum; i = i + step) {
-      builder.setStartNum(i);
-      builder.setEndNum(i + step);
-      blockList = blockingStubFull.getBlockByLimitNext(builder.build());
-      result = Optional.ofNullable(blockList);
+
+    BlockListExtention blockList = null;
+    Optional<List<BlockExtention>> result;
+    int step = 10;
+    long stepEndNumber;
+
+    for (long i = startNum; i < endNum; i = i + step) {
+      stepEndNumber = (i + step) > endNum ? endNum : i + step;
+      try {
+        blockList = apiWrapper.getBlockByLimitNext(i, stepEndNumber);
+      } catch (IllegalException e) {
+        log.error("failed to get the blocks.");
+        e.printStackTrace();
+        System.exit(1);
+      }
+      result = Optional.ofNullable(blockList.getBlockList());
       if (result.isPresent()) {
-        blockList = result.get();
-        if (blockList.getBlockCount() > 0) {
-          for (Block block : blockList.getBlockList()) {
+        List<BlockExtention> blockExtentionList = result.get();
+        if (blockExtentionList.size()> 0) {
+          for (BlockExtention block : blockList.getBlockList()) {
             if (block.getTransactionsCount() > 0) {
-              transactionsOfReplay.addAll(block.getTransactionsList());
+              transactionsOfReplay
+                  .addAll(block.getTransactionsList().stream().map(
+                      TransactionExtention::getTransaction).collect(
+                      Collectors.toList()));
             }
           }
         }
       }
       log.info(String
-          .format("already extracted the transaction from block: %d to block: %d.", i, i + step));
+          .format("extract the transactions from block: %d to block: %d.", i, stepEndNumber));
     }
 
     log.info("total relay transactions cnt: " + transactionsOfReplay.size());

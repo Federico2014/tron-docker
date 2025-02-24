@@ -2,8 +2,6 @@ package org.tron.trxs;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -13,8 +11,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
-import org.tron.trident.api.GrpcAPI.EmptyMessage;
-import org.tron.trident.api.WalletGrpc;
+import org.tron.trident.core.ApiWrapper;
+import org.tron.trident.core.exceptions.IllegalException;
 import org.tron.trident.core.key.KeyPair;
 import org.tron.trident.core.utils.ByteArray;
 import org.tron.trident.core.utils.Sha256Hash;
@@ -57,7 +55,7 @@ public class TrxFactory {
   private ScheduledExecutorService updateExecutor = Executors
       .newSingleThreadScheduledExecutor();
 
-  private WalletGrpc.WalletBlockingStub blockingStubFull = null;
+  private ApiWrapper apiWrapper;
 
   private String methodSign = "transfer(address,uint256)";
   private String contractData;
@@ -73,10 +71,8 @@ public class TrxFactory {
     byte[] refBlockHash = ByteArray.fromHexString(TrxConfig.getInstance().getRefBlockHash());
     INSTANCE.refBlockHash = ByteString.copyFrom(ByteArray.subArray(refBlockHash, 8, 16));
 
-    ManagedChannel channelFull = ManagedChannelBuilder.forTarget(INSTANCE.config.getUpdateRefUrl())
-        .usePlaintext()
-        .build();
-    INSTANCE.blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
+    INSTANCE.apiWrapper = new ApiWrapper(INSTANCE.config.getUpdateRefUrl(),
+        INSTANCE.config.getUpdateRefUrl(), INSTANCE.config.getPrivateKey());
 
     INSTANCE.contractData = createContractData(INSTANCE.methodSign, INSTANCE.config.getToAddress(),
         INSTANCE.config.getTransferTrc20Amount());
@@ -100,7 +96,14 @@ public class TrxFactory {
   private void update() {
     log.info("begin to update the transaction reference");
     time.set(Math.max(System.currentTimeMillis() + validPeriod, time.get()));
-    Block block = blockingStubFull.getNowBlock(EmptyMessage.newBuilder().build());
+    Block block = null;
+    try {
+      block = apiWrapper.getNowBlock();
+    } catch (IllegalException e) {
+      log.error("failed to get the block");
+      e.printStackTrace();
+      System.exit(1);
+    }
     long blockNum = block.getBlockHeader().getRawData().getNumber() - 1;
     byte[] blockHash = block.getBlockHeader().getRawData().getParentHash().toByteArray();
     refBlockHash = ByteString.copyFrom(ByteArray.subArray(blockHash, 8, 16));
