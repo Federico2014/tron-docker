@@ -14,7 +14,7 @@ import org.tron.trident.api.WalletGrpc;
 import org.tron.trident.proto.Chain.Block;
 import org.tron.trxs.BroadcastGenerate;
 import org.tron.trxs.BroadcastRelay;
-import org.tron.trxs.TransactionConfig;
+import org.tron.trxs.TrxConfig;
 import org.tron.utils.Statistic;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -26,7 +26,7 @@ import picocli.CommandLine.Command;
     exitCodeList = {
         "0:Successful",
         "n:Internal error: exception occurred,please check logs/stress_test.log"})
-public class BroadcastTxs implements Callable<Integer> {
+public class BroadcastTrx implements Callable<Integer> {
 
   @CommandLine.Spec
   public static CommandLine.Model.CommandSpec spec;
@@ -61,16 +61,16 @@ public class BroadcastTxs implements Callable<Integer> {
           .println();
       System.exit(-1);
     }
-    TransactionConfig.initParams(stressConfig);
-    TransactionConfig config = TransactionConfig.getInstance();
+    TrxConfig.initParams(stressConfig);
+    TrxConfig config = TrxConfig.getInstance();
 
-    channelFull = ManagedChannelBuilder.forTarget(config.getUrl())
+    channelFull = ManagedChannelBuilder.forTarget(config.getBroadcastUrl())
         .usePlaintext()
         .build();
     blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
     Statistic.setBlockingStubFull(blockingStubFull);
 
-    if (config.isBroadcastGen()) {
+    if (config.isBroadcastGenerate()) {
       BroadcastGenerate broadcastGenerate = new BroadcastGenerate(config);
       Block startBlock = blockingStubFull.getNowBlock(EmptyMessage.newBuilder().build());
       broadcastGenerate.broadcastTransactions();

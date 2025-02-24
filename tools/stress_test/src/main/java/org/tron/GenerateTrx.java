@@ -6,10 +6,11 @@ import java.io.File;
 import java.nio.file.Paths;
 import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
-import org.tron.trxs.ReplayTransactionGenerator;
-import org.tron.trxs.TransactionConfig;
-import org.tron.trxs.TransactionFactory;
-import org.tron.trxs.TransactionGenerator;
+import org.tron.trident.core.exceptions.IllegalException;
+import org.tron.trxs.ReplayTrxGenerator;
+import org.tron.trxs.TrxConfig;
+import org.tron.trxs.TrxFactory;
+import org.tron.trxs.TrxGenerator;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
@@ -20,7 +21,7 @@ import picocli.CommandLine.Command;
     exitCodeList = {
         "0:Successful",
         "n:Internal error: exception occurred,please check logs/stress_test.log"})
-public class GenerateTxs implements Callable<Integer> {
+public class GenerateTrx implements Callable<Integer> {
 
   @CommandLine.Spec
   public static CommandLine.Model.CommandSpec spec;
@@ -34,11 +35,8 @@ public class GenerateTxs implements Callable<Integer> {
   @CommandLine.Option(names = {"-h", "--help"})
   private boolean help;
 
-  public static Integer singleTaskTransactionCount = 800000;
-  private static Integer dispatchCount;
-
   @Override
-  public Integer call() {
+  public Integer call() throws IllegalException {
     if (help) {
       spec.commandLine().usage(System.out);
       return 0;
@@ -49,37 +47,36 @@ public class GenerateTxs implements Callable<Integer> {
     if (file.exists() && file.isFile()) {
       stressConfig = ConfigFactory.parseFile(Paths.get(config).toFile());
     } else {
-      log.error("Stress test config file [" + config + "] not exists!");
-      spec.commandLine().getErr().format("Stress test config file [" + config + "] not exists!")
-          .println();
+      log.error("stress test config file {} not exists!", config);
       System.exit(-1);
     }
-    TransactionConfig.initParams(stressConfig);
-    TransactionConfig config = TransactionConfig.getInstance();
+    TrxConfig.initParams(stressConfig);
+    TrxConfig config = TrxConfig.getInstance();
+    log.info("load the config file successfully!");
 
-    if (config.isGenerate()) {
-      dispatchCount = config.getTotalTrxCnt() / singleTaskTransactionCount;
+    if (config.isGenerateTrx()) {
+      int dispatchCount = config.getTotalTrxCnt() / config.getSingleTaskCnt();
+      int lastTaskCnt = config.getSingleTaskCnt();
+      if (config.getTotalTrxCnt() % config.getSingleTaskCnt() != 0) {
+        dispatchCount = dispatchCount + 1;
+        lastTaskCnt = config.getTotalTrxCnt() % config.getSingleTaskCnt();
+      }
       log.info("start to generate the transactions");
-      spec.commandLine().getOut().println("start to generate the transactions");
-      TransactionFactory.init();
-      for (int i = 0; i <= dispatchCount; i++) {
-        new TransactionGenerator(
-            i == dispatchCount ? config.getTotalTrxCnt() % singleTaskTransactionCount
-                : singleTaskTransactionCount, i).start();
+      TrxFactory.initInstance();
+      TrxFactory.getInstance().updateTrxReference();
+      for (int i = 0; i < dispatchCount; i++) {
+        new TrxGenerator(
+            i == (dispatchCount - 1) ? lastTaskCnt
+                : config.getSingleTaskCnt(), i).setTotalTask(dispatchCount).start();
       }
 
       log.info("finish generating the transactions");
-      spec.commandLine().getOut().println("finish generating the transactions");
     }
 
     if (config.isRelay()) {
       log.info("start to relay the transactions");
-      spec.commandLine().getOut().println("start to relay the transactions");
-
-      new ReplayTransactionGenerator().start();
-
+      new ReplayTrxGenerator().start();
       log.info("finish relaying the transactions");
-      spec.commandLine().getOut().println("finish relaying the transactions");
     }
 
     return 0;

@@ -8,6 +8,10 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.trident.api.GrpcAPI.EmptyMessage;
 import org.tron.trident.api.WalletGrpc;
@@ -21,52 +25,81 @@ import org.tron.trident.proto.Chain.Transaction;
 import org.tron.trident.proto.Chain.Transaction.Contract.ContractType;
 import org.tron.trident.proto.Contract;
 
-public class TransactionFactory {
+@Slf4j(topic = "trxFactory")
+public class TrxFactory {
 
-  private static final long validPeriod = 24 * 60 * 60 * 1000L;
-  private static long time;
+  private static final TrxFactory INSTANCE = new TrxFactory();
 
-  private static ByteString refBlockNum;
-  private static ByteString refBlockHash;
-  private static KeyPair keyPair;
+  @Setter
+  @Getter
+  private long validPeriod = 24 * 60 * 60 * 1000L;
 
-  private static TransactionConfig config;
+  @Setter
+  @Getter
+  private AtomicLong time = new AtomicLong(System.currentTimeMillis());
 
-  private static ScheduledExecutorService updateExecutor = Executors
+  @Setter
+  @Getter
+  private ByteString refBlockNum;
+
+  @Setter
+  @Getter
+  private ByteString refBlockHash;
+
+  @Setter
+  @Getter
+  private KeyPair keyPair;
+
+  @Setter
+  @Getter
+  private TrxConfig config;
+
+  private ScheduledExecutorService updateExecutor = Executors
       .newSingleThreadScheduledExecutor();
 
-  private static ManagedChannel channelFull = null;
-  private static WalletGrpc.WalletBlockingStub blockingStubFull = null;
+  private WalletGrpc.WalletBlockingStub blockingStubFull = null;
 
-  private static final String methodSign = "transfer(address,uint256)";
-  private static String contractData;
+  private String methodSign = "transfer(address,uint256)";
+  private String contractData;
 
-  public static void init() {
-    config = TransactionConfig.getInstance();
-    keyPair = new KeyPair(config.getPrivateKey());
-    time = System.currentTimeMillis() + validPeriod;
+  public static void initInstance() {
+    INSTANCE.config = TrxConfig.getInstance();
+    INSTANCE.keyPair = new KeyPair(INSTANCE.config.getPrivateKey());
 
-    channelFull = ManagedChannelBuilder.forTarget(config.getUrl())
+    long expirationTime = System.currentTimeMillis() + INSTANCE.validPeriod;
+    INSTANCE.time.set(expirationTime);
+    byte[] refBlockNumber = ByteArray.fromLong(TrxConfig.getInstance().getRefBlockNum());
+    INSTANCE.refBlockNum = ByteString.copyFrom(ByteArray.subArray(refBlockNumber, 6, 8));
+    byte[] refBlockHash = ByteArray.fromHexString(TrxConfig.getInstance().getRefBlockHash());
+    INSTANCE.refBlockHash = ByteString.copyFrom(ByteArray.subArray(refBlockHash, 8, 16));
+
+    ManagedChannel channelFull = ManagedChannelBuilder.forTarget(INSTANCE.config.getUpdateRefUrl())
         .usePlaintext()
         .build();
-    blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
+    INSTANCE.blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
 
-    contractData = createContractData(methodSign, config.getToAddress(),
-        config.getTransferTrc20Amount());
+    INSTANCE.contractData = createContractData(INSTANCE.methodSign, INSTANCE.config.getToAddress(),
+        INSTANCE.config.getTransferTrc20Amount());
+  }
 
-    if (config.produceValidTxs) {
+  public void updateTrxReference() {
+    if (config.isUpdateRef()) {
+      update();
       updateExecutor.scheduleWithFixedDelay(() -> {
         try {
           update();
         } catch (Exception e) {
+          log.error("failed to update the transaction reference");
           e.printStackTrace();
+          System.exit(1);
         }
-      }, 100, 60, TimeUnit.SECONDS);
+      }, 0, 60, TimeUnit.SECONDS);
     }
   }
 
-  private static void update() {
-    time = System.currentTimeMillis() + validPeriod;
+  private void update() {
+    log.info("begin to update the transaction reference");
+    time.set(Math.max(System.currentTimeMillis() + validPeriod, time.get()));
     Block block = blockingStubFull.getNowBlock(EmptyMessage.newBuilder().build());
     long blockNum = block.getBlockHeader().getRawData().getNumber() - 1;
     byte[] blockHash = block.getBlockHeader().getRawData().getParentHash().toByteArray();
@@ -78,7 +111,7 @@ public class TransactionFactory {
     updateExecutor.shutdown();
   }
 
-  public static Transaction createTransferTrx() {
+  public Transaction createTransferTrx() {
     Contract.TransferContract contract = Contract.TransferContract.newBuilder()
         .setOwnerAddress(ByteString.fromHex(config.getFromAddress()))
         .setToAddress(ByteString.fromHex(config.getToAddress()))
@@ -90,7 +123,7 @@ public class TransactionFactory {
     return transaction;
   }
 
-  public static Transaction createTransferTrc10() {
+  public Transaction createTransferTrc10() {
     Contract.TransferAssetContract contract = Contract.TransferAssetContract.newBuilder()
         .setAssetName(ByteString.copyFromUtf8(config.getTrc10Id()))
         .setOwnerAddress(ByteString.fromHex(config.getFromAddress()))
@@ -103,7 +136,7 @@ public class TransactionFactory {
     return transaction;
   }
 
-  public static Transaction createTransferTrc20() {
+  public Transaction createTransferTrc20() {
 
     Contract.TriggerSmartContract contract = Contract.TriggerSmartContract.newBuilder()
         .setOwnerAddress(ByteString.fromHex(config.getFromAddress()))
@@ -125,12 +158,12 @@ public class TransactionFactory {
 
     byte[] params = new byte[64];
     System.arraycopy(Hex.decode(receiver), 1, params, 12, 20);
-    System.arraycopy(ByteArray.fromLong(amount), 0, params, 24, 8);
+    System.arraycopy(ByteArray.fromLong(amount), 0, params, 56, 8);
     return Hex.toHexString(selector) + Hex.toHexString(params);
   }
 
 
-  public static Transaction createTransaction(com.google.protobuf.Message message,
+  public Transaction createTransaction(com.google.protobuf.Message message,
       ContractType contractType) {
     Transaction.raw.Builder transactionBuilder = Transaction.raw.newBuilder().addContract(
         Transaction.Contract.newBuilder().setType(contractType).setParameter(
@@ -138,19 +171,11 @@ public class TransactionFactory {
 
     Transaction transaction = Transaction.newBuilder().setRawData(transactionBuilder.build())
         .build();
-    time++;
-    transaction = setExpiration(transaction, time + 1);
-
-    if (config.produceValidTxs) {
-      transaction = setReference(transaction);
-    } else {
-      transaction = setReference(transaction, time, ByteArray.fromLong(time));
-    }
-
-    return transaction;
+    time.incrementAndGet();
+    return setReferenceAndExpiration(transaction);
   }
 
-  private static Transaction setReference(Transaction transaction, long blockNum,
+  private Transaction setReference(Transaction transaction, long blockNum,
       byte[] blockHash) {
     byte[] refBlockNum = ByteArray.fromLong(blockNum);
     Transaction.raw rawData = transaction.getRawData().toBuilder()
@@ -160,8 +185,9 @@ public class TransactionFactory {
     return transaction.toBuilder().setRawData(rawData).build();
   }
 
-  private static Transaction setReference(Transaction transaction) {
+  private Transaction setReferenceAndExpiration(Transaction transaction) {
     Transaction.raw rawData = transaction.getRawData().toBuilder()
+        .setExpiration(time.get())
         .setRefBlockHash(refBlockHash)
         .setRefBlockBytes(refBlockNum)
         .build();
@@ -174,7 +200,7 @@ public class TransactionFactory {
     return transaction.toBuilder().setRawData(rawData).build();
   }
 
-  public static Transaction sign(Transaction transaction) {
+  public Transaction sign(Transaction transaction) {
     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
     byte[] hash = Sha256Hash.hash(true, transaction.getRawData().toByteArray());
     List<Chain.Transaction.Contract> listContract = transaction.getRawData().getContractList();
@@ -185,5 +211,9 @@ public class TransactionFactory {
 
     transaction = transactionBuilderSigned.build();
     return transaction;
+  }
+
+  public static TrxFactory getInstance() {
+    return INSTANCE;
   }
 }

@@ -3,29 +3,28 @@ package org.tron.trxs;
 import java.util.HashMap;
 import java.util.Map;
 
-public enum TransactionType {
+public enum TrxType {
   TRANSFER("transfer"),
   TRANSFER_TRC10("transferTrc10"),
   TRANSFER_TRC20("transferTrc20");
 
   private final String type;
 
-  TransactionType(String type) {
+  TrxType(String type) {
     this.type = type;
   }
 
-  private static final Map<String, TransactionType> stringToTypeMap = new HashMap<>();
+  private static final Map<String, TrxType> stringToTypeMap = new HashMap<>();
 
   static {
-    for (TransactionType type : TransactionType.values()) {
+    for (TrxType type : TrxType.values()) {
       stringToTypeMap.put(type.type, type);
     }
   }
 
-  public static TransactionType fromString(String type) {
+  public static TrxType fromString(String type) {
     return stringToTypeMap.get(type);
   }
-
 
   @Override
   public String toString() {

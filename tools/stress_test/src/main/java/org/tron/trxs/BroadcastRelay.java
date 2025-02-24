@@ -28,8 +28,8 @@ public class BroadcastRelay {
   private ExecutorService saveTransactionIDPool = Executors
       .newFixedThreadPool(1, r -> new Thread(r, "save-relay-transaction-id"));
 
-  public BroadcastRelay(TransactionConfig config) {
-    channelFull = ManagedChannelBuilder.forTarget(config.getUrl())
+  public BroadcastRelay(TrxConfig config) {
+    channelFull = ManagedChannelBuilder.forTarget(config.getBroadcastUrl())
         .usePlaintext()
         .build();
     blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
@@ -83,7 +83,7 @@ public class BroadcastRelay {
       long endTps;
       while ((transaction = Transaction.parseDelimitedFrom(fis)) != null) {
         trxCount++;
-        if (cnt > TransactionConfig.getInstance().getTps()) {
+        if (cnt > TrxConfig.getInstance().getTps()) {
           endTps = System.currentTimeMillis();
           if (endTps - startTps < 1000) {
             Thread.sleep(1000 - (endTps - startTps));

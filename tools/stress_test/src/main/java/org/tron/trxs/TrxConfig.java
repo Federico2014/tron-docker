@@ -8,40 +8,54 @@ import java.util.Map;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
-import org.tron.trident.abi.datatypes.Address;
 import org.tron.trident.core.key.KeyPair;
 import org.tron.trident.utils.Base58Check;
 
 import static org.tron.utils.Constant.*;
 
+@Slf4j(topic = "trxConfig")
 @NoArgsConstructor
-public class TransactionConfig {
+public class TrxConfig {
 
-  private static final TransactionConfig INSTANCE = new TransactionConfig();
-
-  @Setter
-  @Getter
-  private boolean isGenerate = true;
+  private static final TrxConfig INSTANCE = new TrxConfig();
 
   @Setter
   @Getter
-  public int totalTrxCnt = 1000000;
+  private boolean generateTrx = true;
 
   @Setter
   @Getter
-  public int tps = 1000;
+  private int totalTrxCnt = 1000000;
 
   @Setter
   @Getter
-  public String url;
+  private int singleTaskCnt = 1000000;
 
   @Setter
   @Getter
-  public boolean produceValidTxs;
+  private int tps = 1000;
 
   @Setter
-  public Map<TransactionType, Range<Integer>> rangeMap = new LinkedHashMap<>();
+  @Getter
+  private Map<TrxType, Range<Integer>> rangeMap = new LinkedHashMap<>();
+
+  @Setter
+  @Getter
+  private long refBlockNum = 0;
+
+  @Setter
+  @Getter
+  private String refBlockHash = "0000000000000000000000000000000000000000000000000000000000000000";
+
+  @Setter
+  @Getter
+  private boolean updateRef = false;
+
+  @Setter
+  @Getter
+  private String updateRefUrl;
 
   @Setter
   @Getter
@@ -82,67 +96,89 @@ public class TransactionConfig {
 
   @Setter
   @Getter
-  public String relayUrl;
+  private String relayUrl;
 
   @Setter
   @Getter
-  private int relayStartNumber = 0;
+  private long relayStartNumber = 0;
 
   @Setter
   @Getter
-  private int relayEndNumber = 0;
+  private long relayEndNumber = 0;
 
   @Setter
   @Getter
-  private boolean broadcastGen = true;
+  private String broadcastUrl;
+
+  @Setter
+  @Getter
+  private boolean broadcastGenerate = true;
 
   @Setter
   @Getter
   private boolean broadcastRelay = false;
 
   public static void initParams(Config config) {
-    if (config.hasPath(IS_GENERATE)) {
-      INSTANCE.setGenerate(config.getBoolean(IS_GENERATE));
+    if (config.hasPath(GENERATE_TRX)) {
+      INSTANCE.setGenerateTrx(config.getBoolean(GENERATE_TRX));
     }
 
-    if (config.hasPath(TOTAL_TXS_CNT) && config.getInt(TOTAL_TXS_CNT) > 0) {
-      INSTANCE.setTotalTrxCnt(config.getInt(TOTAL_TXS_CNT));
+    if (config.hasPath(TOTAL_GENERATE_TRX_CNT)
+        && config.getInt(TOTAL_GENERATE_TRX_CNT) > 0) {
+      INSTANCE.setTotalTrxCnt(config.getInt(TOTAL_GENERATE_TRX_CNT));
     } else {
-      throw new IllegalArgumentException("no valid totalTxsCnt.");
+      log.error("totalGenerateTransaction is not valid.");
+      throw new IllegalArgumentException("totalGenerateTransaction is not valid");
+    }
+
+    if (config.hasPath(SINGLE_TASK_TRX_COUNT)
+        && config.getInt(SINGLE_TASK_TRX_COUNT) > 0) {
+      INSTANCE.setSingleTaskCnt(config.getInt(SINGLE_TASK_TRX_COUNT));
+    } else {
+      log.error("singleTaskTransactionCount is not valid");
+      throw new IllegalArgumentException("singleTaskTransactionCount is not valid");
     }
 
     if (config.hasPath(TPS) && config.getInt(TPS) > 0) {
-      INSTANCE.setTotalTrxCnt(config.getInt(TPS));
+      INSTANCE.setTps(config.getInt(TPS));
     } else {
-      throw new IllegalArgumentException("no valid tps.");
+      log.error("tps is not valid");
+      throw new IllegalArgumentException("tps is not valid");
     }
 
-    if (config.hasPath(URL)) {
-      INSTANCE.setUrl(config.getString(URL));
-    } else {
-      throw new IllegalArgumentException("no valid tps.");
+    if (!config.hasPath(GENERATE_TRX_TYPE)) {
+      log.error("transaction type is not valid");
+      throw new IllegalArgumentException("transaction type is not valid");
+    }
+    INSTANCE.setRangeMap(calculateRanges(config.getConfig(GENERATE_TRX_TYPE)));
+
+    if (config.hasPath(REF_BLOCK_NUMBER) && config.getLong(REF_BLOCK_NUMBER) > 0) {
+      INSTANCE.setRefBlockNum(config.getLong(REF_BLOCK_NUMBER));
     }
 
-    if (config.hasPath(PRODUCE_VALID_TXS)) {
-      INSTANCE.setProduceValidTxs(config.getBoolean(PRODUCE_VALID_TXS));
-    } else {
-      throw new IllegalArgumentException("no valid tps.");
+    if (config.hasPath(REF_BLOCK_HASH)) {
+      INSTANCE.setRefBlockHash(config.getString(REF_BLOCK_HASH));
     }
 
-    if (!config.hasPath(TRX_TYPE)) {
-      throw new IllegalArgumentException("no valid transaction type.");
+    if (config.hasPath(UPDATE_REF_URL)) {
+      INSTANCE.setUpdateRefUrl(config.getString(UPDATE_REF_URL));
     }
-    INSTANCE.setRangeMap(calculateRanges(config.getConfig(TRX_TYPE)));
+
+    if (config.hasPath(UPDATE_REF)) {
+      INSTANCE.setUpdateRef(config.getBoolean(UPDATE_REF));
+    }
 
     if (!config.hasPath(PRIVATE_KEY) || config.getString(PRIVATE_KEY).length() != 64) {
-      throw new IllegalArgumentException("no valid private key.");
+      log.error("private key is not valid.");
+      throw new IllegalArgumentException("private key is not valid.");
     }
     INSTANCE.setPrivateKey(config.getString(PRIVATE_KEY));
     KeyPair keyPair = new KeyPair(INSTANCE.getPrivateKey());
     INSTANCE.setFromAddress(keyPair.toHexAddress());
 
     if (!config.hasPath(TO_ADDRESS)) {
-      throw new IllegalArgumentException("no valid toAddress.");
+      log.error("toAddress is not valid.");
+      throw new IllegalArgumentException("toAddress is not valid.");
     }
     INSTANCE.setToAddress(Hex.toHexString(Base58Check.base58ToBytes(config.getString(TO_ADDRESS))));
 
@@ -171,22 +207,28 @@ public class TransactionConfig {
       INSTANCE.setRelay(true);
       if (!config.hasPath(RELAY_URL) || !config.hasPath(RELAY_START_NUMBER) || !config
           .hasPath(RELAY_END_NUMBER)) {
+        log.error("the relay parameters are not valid.");
         throw new IllegalArgumentException("the relay parameters are not valid.");
       }
 
       INSTANCE.setRelay(true);
       INSTANCE.setRelayUrl(config.getString(RELAY_URL));
-      INSTANCE.setRelayStartNumber(config.getInt(RELAY_START_NUMBER));
-      INSTANCE.setRelayEndNumber(config.getInt(RELAY_END_NUMBER));
+      INSTANCE.setRelayStartNumber(config.getLong(RELAY_START_NUMBER));
+      INSTANCE.setRelayEndNumber(config.getLong(RELAY_END_NUMBER));
 
       if (INSTANCE.relayStartNumber < 0 || INSTANCE.relayStartNumber > INSTANCE
           .relayEndNumber) {
+        log.error("the relay range is not valid.");
         throw new IllegalArgumentException("the relay range is not valid.");
       }
     }
 
-    if (config.hasPath(BROADCAST_GEN)) {
-      INSTANCE.setBroadcastGen(config.getBoolean(BROADCAST_GEN));
+    if (config.hasPath(BROADCAST_URL)) {
+      INSTANCE.setBroadcastUrl(config.getString(UPDATE_REF_URL));
+    }
+
+    if (config.hasPath(BROADCAST_GENERATE)) {
+      INSTANCE.setBroadcastGenerate(config.getBoolean(BROADCAST_GENERATE));
     }
 
     if (config.hasPath(BROADCAST_RELAY)) {
@@ -194,24 +236,25 @@ public class TransactionConfig {
     }
   }
 
-  public static Map<TransactionType, Range<Integer>> calculateRanges(Config trxType) {
-    Map<TransactionType, Range<Integer>> rangeMap = new LinkedHashMap<>();
+  public static Map<TrxType, Range<Integer>> calculateRanges(Config trxType) {
+    Map<TrxType, Range<Integer>> rangeMap = new LinkedHashMap<>();
     int start = 0;
     for (Map.Entry<String, ConfigValue> entry : trxType.entrySet()) {
       int value = trxType.getInt(entry.getKey());
       rangeMap
-          .put(TransactionType.fromString(entry.getKey()), Range.closedOpen(start, start + value));
+          .put(TrxType.fromString(entry.getKey()), Range.closedOpen(start, start + value));
       start += value;
     }
     if (start != 100) {
+      log.error("transaction type sum not equals 100.");
       throw new IllegalArgumentException("transaction type sum not equals 100.");
     }
 
     return rangeMap;
   }
 
-  public TransactionType findTransactionType(int number) {
-    for (Map.Entry<TransactionType, Range<Integer>> entry : rangeMap.entrySet()) {
+  public TrxType findTransactionType(int number) {
+    for (Map.Entry<TrxType, Range<Integer>> entry : rangeMap.entrySet()) {
       if (entry.getValue().contains(number)) {
         return entry.getKey();
       }
@@ -219,7 +262,7 @@ public class TransactionConfig {
     return null;
   }
 
-  public static TransactionConfig getInstance() {
+  public static TrxConfig getInstance() {
     return INSTANCE;
   }
 

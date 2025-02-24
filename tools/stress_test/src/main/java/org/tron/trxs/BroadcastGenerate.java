@@ -28,9 +28,9 @@ public class BroadcastGenerate {
   private static ExecutorService saveTransactionIDPool = Executors
       .newFixedThreadPool(1, r -> new Thread(r, "save-gen-transaction-id"));
 
-  public BroadcastGenerate(TransactionConfig config) {
+  public BroadcastGenerate(TrxConfig config) {
     dispatchCount = config.getTotalTrxCnt() / singleTaskTransactionCount;
-    channelFull = ManagedChannelBuilder.forTarget(config.getUrl())
+    channelFull = ManagedChannelBuilder.forTarget(config.getBroadcastUrl())
         .usePlaintext()
         .build();
     blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
@@ -89,7 +89,7 @@ public class BroadcastGenerate {
         long endTps;
         while ((transaction = Transaction.parseDelimitedFrom(fis)) != null) {
           trxCount++;
-          if (cnt > TransactionConfig.getInstance().getTps()) {
+          if (cnt > TrxConfig.getInstance().getTps()) {
             endTps = System.currentTimeMillis();
             if (endTps - startTps < 1000) {
               Thread.sleep(1000 - (endTps - startTps));

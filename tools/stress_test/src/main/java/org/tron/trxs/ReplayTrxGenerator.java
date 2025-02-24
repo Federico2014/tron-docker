@@ -2,6 +2,7 @@ package org.tron.trxs;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -14,19 +15,24 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.trident.api.GrpcAPI;
+import org.tron.trident.api.GrpcAPI.EmptyMessage;
 import org.tron.trident.api.WalletGrpc;
+import org.tron.trident.core.ApiWrapper;
+import org.tron.trident.core.exceptions.IllegalException;
 import org.tron.trident.proto.Chain.Block;
 import org.tron.trident.proto.Chain.Transaction;
 import org.tron.trident.proto.Response.BlockList;
 
-@Slf4j(topic = "relayTransactionGenerator")
-public class ReplayTransactionGenerator {
+@Slf4j(topic = "relayTrxGenerator")
+public class ReplayTrxGenerator {
 
-  private int startNum;
-  private int endNum;
+  private long startNum;
+  private long endNum;
   private String outputFile;
-  private ManagedChannel channelFull = null;
-  private WalletGrpc.WalletBlockingStub blockingStubFull = null;
+  private String outputDir = "stress-test-output";
+
+  private ManagedChannel channelFull;
+  private WalletGrpc.WalletBlockingStub blockingStubFull;
   public static List<Transaction> transactionsOfReplay = new ArrayList<>();
   public static AtomicInteger indexOfReplayTransaction = new AtomicInteger();
   private int count = 0;
@@ -37,19 +43,43 @@ public class ReplayTransactionGenerator {
   FileOutputStream fos = null;
   CountDownLatch countDownLatch = null;
   private ExecutorService savePool = Executors.newFixedThreadPool(1,
-      r -> new Thread(r, "save-transaction"));
+      r -> new Thread(r, "save-trx"));
 
   private ExecutorService generatePool = Executors.newFixedThreadPool(2,
-      r -> new Thread(r, "generate-transaction"));
+      r -> new Thread(r, "relay-trx"));
 
-  public ReplayTransactionGenerator(String outputFile) {
-    this.outputFile = outputFile;
-    this.startNum = TransactionConfig.getInstance().getRelayStartNumber();
-    this.endNum = TransactionConfig.getInstance().getRelayEndNumber();
+  public ReplayTrxGenerator(String outputFile) throws IllegalException {
+    File dir = new File(outputDir);
+    if (!dir.exists()) {
+      dir.mkdirs();
+    }
+
+    this.outputFile = outputDir + File.separator + outputFile;
+    this.startNum = TrxConfig.getInstance().getRelayStartNumber();
+    this.endNum = TrxConfig.getInstance().getRelayEndNumber();
+
+    System.out.println("relay url: " + TrxConfig.getInstance().getRelayUrl());
+    channelFull = ManagedChannelBuilder
+        .forTarget(TrxConfig.getInstance().getRelayUrl())
+        .usePlaintext()
+        .build();
+    this.blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
+//    Block block = blockingStubFull.getNowBlock(EmptyMessage.newBuilder().build());
+//    System.out.println("blockNumber: " + block.getBlockHeader().getRawData().getNumber());
+
+    ApiWrapper apiWrapper2 = ApiWrapper.ofMainnet(TrxConfig.getInstance().getPrivateKey());
+    Block block3 = apiWrapper2.getNowBlock();
+    System.out.println("blockNumber2: " + block3.getBlockHeader().getRawData().getNumber());
+
+    ApiWrapper apiWrapper = new ApiWrapper(TrxConfig.getInstance().getRelayUrl(),
+        TrxConfig.getInstance().getRelayUrl(),
+        TrxConfig.getInstance().getPrivateKey());
+    Block block2 = apiWrapper.getNowBlock();
+    System.out.println("blockNumber2: " + block2.getBlockHeader().getRawData().getNumber());
   }
 
-  public ReplayTransactionGenerator() {
-    this("relay-transaction.csv");
+  public ReplayTrxGenerator() throws IllegalException {
+    this("relay-trx.csv");
   }
 
   private void consumerGenerateTransaction() throws IOException {
@@ -62,27 +92,28 @@ public class ReplayTransactionGenerator {
       }
     }
 
-    log.info("transactions size is " + transactions.size());
-    TransactionGenerator.consumeTransaction(transactions, fos, countDownLatch);
+    Transaction transaction = transactions.poll();
+    transaction.writeDelimitedTo(fos);
+
+    long count = countDownLatch.getCount();
+    if (count % 100 == 0) {
+      fos.flush();
+      log.info("relay trx task, remain: %d, pending size: %d",
+          countDownLatch.getCount(), transactions.size());
+    }
+
+    countDownLatch.countDown();
   }
 
   public void start() {
-    channelFull = ManagedChannelBuilder.forTarget(TransactionConfig.getInstance().getRelayUrl())
-        .usePlaintext()
-        .build();
-    blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
-    System.out.println("Start replay generate transaction");
-
     GrpcAPI.BlockLimit.Builder builder = GrpcAPI.BlockLimit.newBuilder();
-    builder.setStartNum(2);
-    builder.setEndNum(4);
-    BlockList blockList = blockingStubFull.getBlockByLimitNext(builder.build());
-    Optional<BlockList> result = Optional.ofNullable(blockList);
+    BlockList blockList;
+    Optional<BlockList> result;
 
-    int step = 50;
-    System.out.println(
+    int step = 5;
+    log.info(
         String.format("extract the transaction from block: %s to block: %s.", startNum, endNum));
-    for (int i = startNum; i < endNum; i = i + step) {
+    for (int i = (int) startNum; i < endNum; i = i + step) {
       builder.setStartNum(i);
       builder.setEndNum(i + step);
       blockList = blockingStubFull.getBlockByLimitNext(builder.build());
@@ -97,12 +128,11 @@ public class ReplayTransactionGenerator {
           }
         }
       }
-      System.out.println(
-          String.format("already extracted the transaction from block: %s to block: %s.", i,
-              i + step));
+      log.info(String
+          .format("already extracted the transaction from block: %d to block: %d.", i, i + step));
     }
 
-    System.out.println("total transactions cnt: " + transactionsOfReplay.size());
+    log.info("total relay transactions cnt: " + transactionsOfReplay.size());
     this.count = transactionsOfReplay.size();
 
     savePool.submit(() -> {
@@ -132,7 +162,7 @@ public class ReplayTransactionGenerator {
     } catch (InterruptedException | IOException e) {
       e.printStackTrace();
     } finally {
-      TransactionGenerator.shutDown(generatePool, savePool);
+      TrxGenerator.shutDown(generatePool, savePool);
     }
   }
 }
