@@ -3,8 +3,10 @@ package org.tron.trxs;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -36,6 +38,7 @@ public class TrxGenerator {
       r -> new Thread(r, "save-trx"));
   private ExecutorService generatePool = Executors.newFixedThreadPool(5,
       r -> new Thread(r, "generate-trx"));
+  private Set<String> txHash = new HashSet<>();
 
   public TrxGenerator(String outputFile, int count, int index) {
     File dir = new File(outputDir);
@@ -66,16 +69,22 @@ public class TrxGenerator {
     TrxType type = config.findTransactionType(randomInt);
     GenerateTrx.spec.commandLine().getOut()
         .println("generate transaction type: " + type.toString());
+    Transaction transaction;
     switch (type) {
       case TRANSFER:
-        return TrxFactory.getInstance().createTransferTrx();
+        transaction =  TrxFactory.getInstance().createTransferTrx();
+        break;
       case TRANSFER_TRC10:
-        return TrxFactory.getInstance().createTransferTrc10();
+        transaction =  TrxFactory.getInstance().createTransferTrc10();
+        break;
       case TRANSFER_TRC20:
-        return TrxFactory.getInstance().createTransferTrc20();
+        transaction = TrxFactory.getInstance().createTransferTrc20();
+        break;
       default:
         return null;
     }
+
+    return transaction;
   }
 
   private void consumerGenerateTransaction() throws IOException {

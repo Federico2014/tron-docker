@@ -2,15 +2,13 @@ package org.tron;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
-import org.tron.trident.api.GrpcAPI.EmptyMessage;
-import org.tron.trident.api.WalletGrpc;
+import org.tron.trident.core.ApiWrapper;
+import org.tron.trident.core.exceptions.IllegalException;
 import org.tron.trident.proto.Chain.Block;
 import org.tron.trxs.BroadcastGenerate;
 import org.tron.trxs.BroadcastRelay;
@@ -25,7 +23,7 @@ import picocli.CommandLine.Command;
     exitCodeListHeading = "Exit Codes:%n",
     exitCodeList = {
         "0:Successful",
-        "n:Internal error: exception occurred,please check logs/stress_test.log"})
+        "n:Internal error: exception occurred, please check logs/stress_test.log"})
 public class BroadcastTrx implements Callable<Integer> {
 
   @CommandLine.Spec
@@ -40,11 +38,10 @@ public class BroadcastTrx implements Callable<Integer> {
   @CommandLine.Option(names = {"-h", "--help"})
   private boolean help;
 
-  private ManagedChannel channelFull = null;
-  private WalletGrpc.WalletBlockingStub blockingStubFull = null;
+  private ApiWrapper apiWrapper;
 
   @Override
-  public Integer call() throws IOException, InterruptedException {
+  public Integer call() throws IOException, InterruptedException, IllegalException {
     if (help) {
       spec.commandLine().usage(System.out);
       return 0;
@@ -59,38 +56,35 @@ public class BroadcastTrx implements Callable<Integer> {
       spec.commandLine().getErr()
           .format("Stress test config file [%s] not exists!", config)
           .println();
-      System.exit(-1);
+      System.exit(1);
     }
     TrxConfig.initParams(stressConfig);
     TrxConfig config = TrxConfig.getInstance();
 
-    channelFull = ManagedChannelBuilder.forTarget(config.getBroadcastUrl())
-        .usePlaintext()
-        .build();
-    blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
-    Statistic.setBlockingStubFull(blockingStubFull);
+    apiWrapper = new ApiWrapper(config.getBroadcastUrl(), config.getBroadcastUrl(),
+        config.getPrivateKey());
+    Statistic.setApiWrapper(apiWrapper);
 
     if (config.isBroadcastGenerate()) {
-      BroadcastGenerate broadcastGenerate = new BroadcastGenerate(config);
-      Block startBlock = blockingStubFull.getNowBlock(EmptyMessage.newBuilder().build());
+      BroadcastGenerate broadcastGenerate = new BroadcastGenerate(config, apiWrapper);
+      Block startBlock = apiWrapper.getNowBlock();
       broadcastGenerate.broadcastTransactions();
-      Block endBlock = blockingStubFull.getNowBlock(EmptyMessage.newBuilder().build());
+      Block endBlock = apiWrapper.getNowBlock();
       long startNumber = startBlock.getBlockHeader().getRawData().getNumber();
       long endNumber = endBlock.getBlockHeader().getRawData().getNumber();
-      Statistic.result(startNumber, endNumber, "gen-broadcast-result.txt");
+      Statistic.result(startNumber, endNumber, "stress-test-output/broadcast-generate-result.txt");
     }
 
     if (config.isBroadcastRelay()) {
-      BroadcastRelay broadcastRelay = new BroadcastRelay(config);
-      Block startBlock = blockingStubFull.getNowBlock(EmptyMessage.newBuilder().build());
+      BroadcastRelay broadcastRelay = new BroadcastRelay(apiWrapper);
+      Block startBlock = apiWrapper.getNowBlock();
       broadcastRelay.broadcastTransactions();
-      Block endBlock = blockingStubFull.getNowBlock(EmptyMessage.newBuilder().build());
+      Block endBlock = apiWrapper.getNowBlock();
       long startNumber = startBlock.getBlockHeader().getRawData().getNumber();
       long endNumber = endBlock.getBlockHeader().getRawData().getNumber();
-      Statistic.result(startNumber, endNumber, "relay-broadcast-result.txt");
+      Statistic.result(startNumber, endNumber, "stress-test-output/broadcast-relay-result.txt");
     }
 
     return 0;
   }
-
 }

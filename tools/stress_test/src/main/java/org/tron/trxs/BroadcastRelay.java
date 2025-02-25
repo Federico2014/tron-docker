@@ -2,9 +2,8 @@ package org.tron.trxs;
 
 import static org.tron.trxs.BroadcastGenerate.getID;
 
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -12,7 +11,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import lombok.extern.slf4j.Slf4j;
-import org.tron.trident.api.WalletGrpc;
+import org.tron.trident.core.ApiWrapper;
 import org.tron.trident.core.utils.Sha256Hash;
 import org.tron.trident.proto.Chain.Transaction;
 
@@ -22,33 +21,14 @@ public class BroadcastRelay {
   private volatile boolean isFinishSend = false;
   private ConcurrentLinkedQueue<Transaction> transactionIDs = new ConcurrentLinkedQueue<>();
 
-  private ManagedChannel channelFull = null;
-  private WalletGrpc.WalletBlockingStub blockingStubFull = null;
+  private ApiWrapper apiWrapper;
+  private String output = "stress-test-output";
 
   private ExecutorService saveTransactionIDPool = Executors
-      .newFixedThreadPool(1, r -> new Thread(r, "save-relay-transaction-id"));
+      .newFixedThreadPool(1, r -> new Thread(r, "save-relay-trx-id"));
 
-  public BroadcastRelay(TrxConfig config) {
-    channelFull = ManagedChannelBuilder.forTarget(config.getBroadcastUrl())
-        .usePlaintext()
-        .build();
-    blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
-  }
-
-  public void saveTransactionID() {
-    saveTransactionIDPool.submit(() -> {
-      int count = 0;
-      try (
-          FileWriter writer = new FileWriter("relay-transactionsID.csv");
-          BufferedWriter bufferedWriter = new BufferedWriter(writer)
-      ) {
-        processTransactionID(count, bufferedWriter);
-      } catch (IOException e) {
-        e.printStackTrace();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-    });
+  public BroadcastRelay(ApiWrapper apiWrapper) {
+    this.apiWrapper = apiWrapper;
   }
 
   private void processTransactionID(int count, BufferedWriter bufferedWriter)
@@ -73,10 +53,23 @@ public class BroadcastRelay {
 
   public void broadcastTransactions() {
     long trxCount = 0;
-    saveTransactionID();
+    saveTransactionIDPool.submit(() -> {
+      int count = 0;
+      try (
+          FileWriter writer = new FileWriter(output + File.separator + "relay-trxID.csv");
+          BufferedWriter bufferedWriter = new BufferedWriter(writer)
+      ) {
+        processTransactionID(count, bufferedWriter);
+      } catch (IOException e) {
+        e.printStackTrace();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    });
+
     long startTime = System.currentTimeMillis();
     log.info("Start to process relay transaction broadcast task");
-    try (FileInputStream fis = new FileInputStream("relay-transaction.csv")) {
+    try (FileInputStream fis = new FileInputStream(output + File.separator + "relay-trx.csv")) {
       Transaction transaction;
       int cnt = 0;
       long startTps = System.currentTimeMillis();
@@ -91,7 +84,11 @@ public class BroadcastRelay {
           cnt = 0;
           startTps = System.currentTimeMillis();
         } else {
-          blockingStubFull.broadcastTransaction(transaction);
+          try {
+            apiWrapper.broadcastTransaction(transaction);
+          } catch (Exception e) {
+            e.printStackTrace();
+          }
           transactionIDs.add(transaction);
           cnt++;
         }
@@ -103,12 +100,11 @@ public class BroadcastRelay {
       }
     } catch (IOException e) {
       e.printStackTrace();
-    } catch (InterruptedException e ) {
+    } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
 
     long cost = System.currentTimeMillis() - startTime;
-    log.info("relay trx size: {}, cost: {}, tps: {}, txid: {}",
-        trxCount, cost, 1.0 * trxCount / cost * 1000, transactionIDs.size());
+    log.info("relay trx size: {}, cost: {}, tps: {}", trxCount, cost, 1.0 * trxCount / cost * 1000);
   }
 }

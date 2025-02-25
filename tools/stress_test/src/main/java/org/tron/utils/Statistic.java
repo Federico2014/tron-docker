@@ -3,41 +3,39 @@ package org.tron.utils;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.tron.trident.api.GrpcAPI.NumberMessage;
-import org.tron.trident.api.WalletGrpc;
-import org.tron.trident.proto.Chain.Block;
+import org.tron.trident.core.ApiWrapper;
+import org.tron.trident.core.exceptions.IllegalException;
+import org.tron.trident.proto.Response.BlockExtention;
 
 @Slf4j(topic = "statistic")
 public class Statistic {
 
   @Setter
-  @Getter
-  private static WalletGrpc.WalletBlockingStub blockingStubFull = null;
+  private static ApiWrapper apiWrapper;
 
-  public static void result(long startBlock, long endBlock, String output) {
-    Block block;
+  public static void result(long startBlock, long endBlock, String output) throws IllegalException {
+    BlockExtention block;
     long startNumber = 0, endNumber = 0;
     for (long i = startBlock; i < endBlock; i++) {
-      block = blockingStubFull.getBlockByNum(NumberMessage.newBuilder().setNum(i).build());
-      if (block.getTransactionsCount() >= 50) {
+      block = apiWrapper.getBlockByNum(i);
+      if (block.getTransactionsCount() >= 10) {
         startNumber = i;
       }
     }
 
     for (long i = endBlock; i >= startBlock; i--) {
-      block = blockingStubFull.getBlockByNum(NumberMessage.newBuilder().setNum(i).build());
-      if (block.getTransactionsCount() >= 50) {
+      block = apiWrapper.getBlockByNum(i);
+      if (block.getTransactionsCount() >= 10) {
         endNumber = i;
       }
     }
 
     if (startNumber < endNumber) {
-      log.info("startNumber: %d, endNumber: %d", startNumber, endNumber);
+      log.info("startNumber: {}, endNumber: {}", startNumber, endNumber);
     } else {
-      log.error("invalid startNumber: %d, endNumber: %d", startBlock, endNumber);
+      log.error("invalid startNumber: {}, endNumber: {}", startBlock, endNumber);
       return;
     }
 
@@ -47,7 +45,7 @@ public class Statistic {
     int totalTrxCnt = 0;
 
     for (long i = startNumber; i < endNumber; i++) {
-      block = blockingStubFull.getBlockByNum(NumberMessage.newBuilder().setNum(i).build());
+      block = apiWrapper.getBlockByNum(i);
       trxCnt = block.getTransactionsCount();
       totalTrxCnt += trxCnt;
 
@@ -60,10 +58,8 @@ public class Statistic {
     }
 
     long expectedTime = (endNumber - startNumber) * 3000;
-    Block startNumberBlock = blockingStubFull
-        .getBlockByNum(NumberMessage.newBuilder().setNum(startNumber).build());
-    Block endNumberBlock = blockingStubFull
-        .getBlockByNum(NumberMessage.newBuilder().setNum(endNumber).build());
+    BlockExtention startNumberBlock = apiWrapper.getBlockByNum(startNumber);
+    BlockExtention endNumberBlock = apiWrapper.getBlockByNum(endNumber);
     long actualTime = endNumberBlock.getBlockHeader().getRawData().getTimestamp() - startNumberBlock
         .getBlockHeader().getRawData().getTimestamp();
     log.info("expectedTime: %d, actual time: %d", expectedTime, actualTime);

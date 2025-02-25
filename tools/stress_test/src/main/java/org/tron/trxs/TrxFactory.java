@@ -34,7 +34,7 @@ public class TrxFactory {
 
   @Setter
   @Getter
-  private AtomicLong time = new AtomicLong(System.currentTimeMillis());
+  private AtomicLong time = new AtomicLong(System.currentTimeMillis() + validPeriod);
 
   @Setter
   @Getter
@@ -80,7 +80,6 @@ public class TrxFactory {
 
   public void updateTrxReference() {
     if (config.isUpdateRef()) {
-      update();
       updateExecutor.scheduleWithFixedDelay(() -> {
         try {
           update();
@@ -95,7 +94,7 @@ public class TrxFactory {
 
   private void update() {
     log.info("begin to update the transaction reference");
-    time.set(Math.max(System.currentTimeMillis() + validPeriod, time.get()));
+    time.set(Math.max(System.currentTimeMillis() + validPeriod, time.longValue()));
     Block block = null;
     try {
       block = apiWrapper.getNowBlock();
@@ -151,7 +150,8 @@ public class TrxFactory {
         .build();
 
     Transaction transaction = createTransaction(contract, ContractType.TriggerSmartContract);
-    transaction = sign(transaction);
+    Transaction.raw raw = transaction.getRawData().toBuilder().setFeeLimit(2000000000L).build();
+    transaction = sign(transaction.toBuilder().setRawData(raw).build());
     return transaction;
   }
 
@@ -174,8 +174,8 @@ public class TrxFactory {
 
     Transaction transaction = Transaction.newBuilder().setRawData(transactionBuilder.build())
         .build();
-    time.incrementAndGet();
-    return setReferenceAndExpiration(transaction);
+    long expiration = time.incrementAndGet();
+    return setReferenceAndExpiration(transaction, expiration);
   }
 
   private Transaction setReference(Transaction transaction, long blockNum,
@@ -188,9 +188,9 @@ public class TrxFactory {
     return transaction.toBuilder().setRawData(rawData).build();
   }
 
-  private Transaction setReferenceAndExpiration(Transaction transaction) {
+  private Transaction setReferenceAndExpiration(Transaction transaction, long expiration) {
     Transaction.raw rawData = transaction.getRawData().toBuilder()
-        .setExpiration(time.get())
+        .setExpiration(expiration)
         .setRefBlockHash(refBlockHash)
         .setRefBlockBytes(refBlockNum)
         .build();

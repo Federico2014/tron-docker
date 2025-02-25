@@ -20,7 +20,7 @@ import picocli.CommandLine.Command;
     exitCodeListHeading = "Exit Codes:%n",
     exitCodeList = {
         "0:Successful",
-        "n:Internal error: exception occurred,please check logs/stress_test.log"})
+        "n:Internal error: exception occurred, please check logs/stress_test.log"})
 public class GenerateTrx implements Callable<Integer> {
 
   @CommandLine.Spec
