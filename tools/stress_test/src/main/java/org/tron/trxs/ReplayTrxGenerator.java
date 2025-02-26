@@ -76,7 +76,7 @@ public class ReplayTrxGenerator {
     transaction.writeDelimitedTo(fos);
 
     long count = countDownLatch.getCount();
-    if (count % 100 == 0) {
+    if (count % 1000 == 0) {
       fos.flush();
       log.info(String.format("relay trx task, remain: %d, pending size: %d",
           countDownLatch.getCount(), transactions.size()));

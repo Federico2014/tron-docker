@@ -63,7 +63,6 @@ public class GenerateTrx implements Callable<Integer> {
       }
       log.info("start to generate the transactions");
       TrxFactory.initInstance();
-      TrxFactory.getInstance().updateTrxReference();
       for (int i = 0; i < dispatchCount; i++) {
         new TrxGenerator(
             i == (dispatchCount - 1) ? lastTaskCnt

@@ -19,12 +19,12 @@ import org.tron.trident.proto.Chain.Transaction;
 public class BroadcastRelay {
 
   private volatile boolean isFinishSend = false;
-  private ConcurrentLinkedQueue<Transaction> transactionIDs = new ConcurrentLinkedQueue<>();
+  private final ConcurrentLinkedQueue<Transaction> transactionIDs = new ConcurrentLinkedQueue<>();
 
-  private ApiWrapper apiWrapper;
-  private String output = "stress-test-output";
+  private final ApiWrapper apiWrapper;
+  private final String output = "stress-test-output";
 
-  private ExecutorService saveTransactionIDPool = Executors
+  private final ExecutorService saveTransactionIDPool = Executors
       .newFixedThreadPool(1, r -> new Thread(r, "save-relay-trx-id"));
 
   public BroadcastRelay(ApiWrapper apiWrapper) {
@@ -45,7 +45,7 @@ public class BroadcastRelay {
       bufferedWriter.newLine();
       if (count % 1000 == 0) {
         bufferedWriter.flush();
-        log.info("transaction id size: %d", transactionIDs.size());
+        log.info("transaction id size: {}", transactionIDs.size());
       }
       transactionIDs.poll();
     }
@@ -53,19 +53,22 @@ public class BroadcastRelay {
 
   public void broadcastTransactions() {
     long trxCount = 0;
-    saveTransactionIDPool.submit(() -> {
-      int count = 0;
-      try (
-          FileWriter writer = new FileWriter(output + File.separator + "relay-trxID.csv");
-          BufferedWriter bufferedWriter = new BufferedWriter(writer)
-      ) {
-        processTransactionID(count, bufferedWriter);
-      } catch (IOException e) {
-        e.printStackTrace();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-    });
+    boolean saveTrxId = TrxConfig.getInstance().isSaveTrxId();
+    if (saveTrxId) {
+      saveTransactionIDPool.submit(() -> {
+        int count = 0;
+        try (
+            FileWriter writer = new FileWriter(output + File.separator + "relay-trxID.csv");
+            BufferedWriter bufferedWriter = new BufferedWriter(writer)
+        ) {
+          processTransactionID(count, bufferedWriter);
+        } catch (IOException e) {
+          e.printStackTrace();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+      });
+    }
 
     long startTime = System.currentTimeMillis();
     log.info("Start to process relay transaction broadcast task");
@@ -89,13 +92,15 @@ public class BroadcastRelay {
           } catch (Exception e) {
             e.printStackTrace();
           }
-          transactionIDs.add(transaction);
+          if (saveTrxId) {
+            transactionIDs.add(transaction);
+          }
           cnt++;
         }
       }
 
       isFinishSend = true;
-      while (!transactionIDs.isEmpty()) {
+      while (saveTrxId && !transactionIDs.isEmpty()) {
         Thread.sleep(200);
       }
     } catch (IOException e) {
@@ -106,5 +111,6 @@ public class BroadcastRelay {
 
     long cost = System.currentTimeMillis() - startTime;
     log.info("relay trx size: {}, cost: {}, tps: {}", trxCount, cost, 1.0 * trxCount / cost * 1000);
+    BroadcastGenerate.shutDown(saveTransactionIDPool);
   }
 }

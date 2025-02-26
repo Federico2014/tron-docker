@@ -14,6 +14,7 @@ import org.bouncycastle.util.encoders.Hex;
 import org.tron.trident.core.ApiWrapper;
 import org.tron.trident.core.exceptions.IllegalException;
 import org.tron.trident.core.key.KeyPair;
+import org.tron.trident.core.transaction.BlockId;
 import org.tron.trident.core.utils.ByteArray;
 import org.tron.trident.core.utils.Sha256Hash;
 import org.tron.trident.crypto.Hash;
@@ -22,11 +23,14 @@ import org.tron.trident.proto.Chain.Block;
 import org.tron.trident.proto.Chain.Transaction;
 import org.tron.trident.proto.Chain.Transaction.Contract.ContractType;
 import org.tron.trident.proto.Contract;
+import org.tron.trident.proto.Response.TransactionExtention;
 
 @Slf4j(topic = "trxFactory")
 public class TrxFactory {
 
   private static final TrxFactory INSTANCE = new TrxFactory();
+
+  private static final long feeLimit = 2000000000L;
 
   @Setter
   @Getter
@@ -55,6 +59,7 @@ public class TrxFactory {
   private ScheduledExecutorService updateExecutor = Executors
       .newSingleThreadScheduledExecutor();
 
+  @Getter
   private ApiWrapper apiWrapper;
 
   private String methodSign = "transfer(address,uint256)";
@@ -73,9 +78,15 @@ public class TrxFactory {
 
     INSTANCE.apiWrapper = new ApiWrapper(INSTANCE.config.getUpdateRefUrl(),
         INSTANCE.config.getUpdateRefUrl(), INSTANCE.config.getPrivateKey());
+    BlockId blockId = new BlockId(refBlockHash, TrxConfig.getInstance().getRefBlockNum());
+    INSTANCE.apiWrapper.enableLocalCreate(blockId, expirationTime);
 
     INSTANCE.contractData = createContractData(INSTANCE.methodSign, INSTANCE.config.getToAddress(),
         INSTANCE.config.getTransferTrc20Amount());
+    if (INSTANCE.config.isUpdateRef()) {
+      INSTANCE.update();
+      INSTANCE.updateTrxReference();
+    }
   }
 
   public void updateTrxReference() {
@@ -88,13 +99,13 @@ public class TrxFactory {
           e.printStackTrace();
           System.exit(1);
         }
-      }, 0, 60, TimeUnit.SECONDS);
+      }, 60, 60, TimeUnit.SECONDS);
     }
   }
 
   private void update() {
     log.info("begin to update the transaction reference");
-    time.set(Math.max(System.currentTimeMillis() + validPeriod, time.longValue()));
+    time.set(Math.max(System.currentTimeMillis() + validPeriod, time.get()));
     Block block = null;
     try {
       block = apiWrapper.getNowBlock();
@@ -107,10 +118,36 @@ public class TrxFactory {
     byte[] blockHash = block.getBlockHeader().getRawData().getParentHash().toByteArray();
     refBlockHash = ByteString.copyFrom(ByteArray.subArray(blockHash, 8, 16));
     refBlockNum = ByteString.copyFrom(ByteArray.subArray(ByteArray.fromLong(blockNum), 6, 8));
+
+    BlockId blockId = new BlockId(blockHash, blockNum);
+    long expiration = time.incrementAndGet();
+    INSTANCE.apiWrapper.setReferHeadBlockId(blockId);
+    INSTANCE.apiWrapper.setExpireTimeStamp(expiration);
+    log.info("finish updating the transaction reference");
   }
 
   public void close() {
     updateExecutor.shutdown();
+  }
+
+  public Transaction getTransferTrx() throws IllegalException {
+    TransactionExtention transaction = apiWrapper
+        .transfer(config.getFromAddress(), config.getToAddress(), config.getTransferAmount());
+    return apiWrapper.signTransaction(transaction);
+  }
+
+  public Transaction getTransferTrc10() throws IllegalException {
+    TransactionExtention transaction = apiWrapper
+        .transferTrc10(config.getFromAddress(), config.getToAddress(), config.getTrc10Id(),
+            config.getTransferTrc10Amount());
+    return apiWrapper.signTransaction(transaction);
+  }
+
+  public Transaction getTransferTrc20() throws Exception {
+    TransactionExtention transaction = apiWrapper
+        .triggerContract(config.getFromAddress(), config.getTrc20ContractAddress(), contractData,
+            0L, 0L, null, feeLimit);
+    return apiWrapper.signTransaction(transaction);
   }
 
   public Transaction createTransferTrx() {
@@ -127,10 +164,10 @@ public class TrxFactory {
 
   public Transaction createTransferTrc10() {
     Contract.TransferAssetContract contract = Contract.TransferAssetContract.newBuilder()
-        .setAssetName(ByteString.copyFromUtf8(config.getTrc10Id()))
+        .setAssetName(ByteString.copyFromUtf8(String.valueOf(config.getTrc10Id())))
         .setOwnerAddress(ByteString.fromHex(config.getFromAddress()))
         .setToAddress(ByteString.fromHex(config.getToAddress()))
-        .setAmount(config.getTransferAmount())
+        .setAmount(config.getTransferTrc10Amount())
         .build();
 
     Transaction transaction = createTransaction(contract, ContractType.TransferAssetContract);
@@ -139,7 +176,6 @@ public class TrxFactory {
   }
 
   public Transaction createTransferTrc20() {
-
     Contract.TriggerSmartContract contract = Contract.TriggerSmartContract.newBuilder()
         .setOwnerAddress(ByteString.fromHex(config.getFromAddress()))
         .setContractAddress(ByteString.fromHex(config.getTrc20ContractAddress()))
@@ -150,7 +186,7 @@ public class TrxFactory {
         .build();
 
     Transaction transaction = createTransaction(contract, ContractType.TriggerSmartContract);
-    Transaction.raw raw = transaction.getRawData().toBuilder().setFeeLimit(2000000000L).build();
+    Transaction.raw raw = transaction.getRawData().toBuilder().setFeeLimit(feeLimit).build();
     transaction = sign(transaction.toBuilder().setRawData(raw).build());
     return transaction;
   }

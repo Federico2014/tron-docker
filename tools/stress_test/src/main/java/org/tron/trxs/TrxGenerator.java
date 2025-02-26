@@ -13,7 +13,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.LongStream;
 import lombok.extern.slf4j.Slf4j;
+import org.bouncycastle.util.encoders.Hex;
 import org.tron.GenerateTrx;
+import org.tron.trident.crypto.Hash;
 import org.tron.trident.proto.Chain.Transaction;
 
 @Slf4j(topic = "trxGenerator")
@@ -27,18 +29,17 @@ public class TrxGenerator {
   private int index;
 
   private volatile boolean isGenerate = true;
-  private ConcurrentLinkedQueue<Transaction> transactions = new ConcurrentLinkedQueue<>();
+  private final ConcurrentLinkedQueue<Transaction> transactions = new ConcurrentLinkedQueue<>();
   FileOutputStream fos = null;
   CountDownLatch countDownLatch = null;
-  private Random random = new Random(System.currentTimeMillis());
+  private final Random random = new Random(System.currentTimeMillis());
 
-  private TrxConfig config = TrxConfig.getInstance();
+  private final TrxConfig config = TrxConfig.getInstance();
 
-  private ExecutorService savePool = Executors.newFixedThreadPool(1,
+  private final ExecutorService savePool = Executors.newFixedThreadPool(1,
       r -> new Thread(r, "save-trx"));
-  private ExecutorService generatePool = Executors.newFixedThreadPool(5,
+  private final ExecutorService generatePool = Executors.newFixedThreadPool(1,
       r -> new Thread(r, "generate-trx"));
-  private Set<String> txHash = new HashSet<>();
 
   public TrxGenerator(String outputFile, int count, int index) {
     File dir = new File(outputDir);
@@ -64,21 +65,21 @@ public class TrxGenerator {
     return this;
   }
 
-  private Transaction generateTransaction() {
+  private Transaction generateTransaction() throws Exception {
     int randomInt = random.nextInt(100);
     TrxType type = config.findTransactionType(randomInt);
-    GenerateTrx.spec.commandLine().getOut()
-        .println("generate transaction type: " + type.toString());
     Transaction transaction;
+    long expiration = TrxFactory.getInstance().getTime().incrementAndGet();
+    TrxFactory.getInstance().getApiWrapper().setExpireTimeStamp(expiration);
     switch (type) {
       case TRANSFER:
-        transaction =  TrxFactory.getInstance().createTransferTrx();
+        transaction = TrxFactory.getInstance().getTransferTrx();
         break;
       case TRANSFER_TRC10:
-        transaction =  TrxFactory.getInstance().createTransferTrc10();
+        transaction = TrxFactory.getInstance().getTransferTrc10();
         break;
       case TRANSFER_TRC20:
-        transaction = TrxFactory.getInstance().createTransferTrc20();
+        transaction = TrxFactory.getInstance().getTransferTrc20();
         break;
       default:
         return null;
@@ -93,15 +94,16 @@ public class TrxGenerator {
         Thread.sleep(100);
         return;
       } catch (InterruptedException e) {
-        System.out.println(e);
+        e.printStackTrace();
       }
     }
 
     Transaction transaction = transactions.poll();
+    assert transaction != null;
     transaction.writeDelimitedTo(fos);
 
-    long count = countDownLatch.getCount();
-    if (count % 100 == 0) {
+    long cnt = countDownLatch.getCount();
+    if (cnt % 1000 == 0) {
       fos.flush();
       log.info(
           String.format("generate trx task: %d/%d, task remain: %d, task pending size: %d",
@@ -128,7 +130,15 @@ public class TrxGenerator {
 
       LongStream.range(0L, this.count).forEach(
           l -> generatePool.execute(
-              () -> Optional.ofNullable(generateTransaction()).ifPresent(transactions::add)));
+              () -> {
+                try {
+                  Optional.ofNullable(generateTransaction()).ifPresent(transactions::add);
+                } catch (Exception e) {
+                  log.error("failed to generate the transaction.");
+                  e.printStackTrace();
+                  System.exit(1);
+                }
+              }));
 
       countDownLatch.await();
       isGenerate = false;
@@ -143,11 +153,7 @@ public class TrxGenerator {
 
   static void shutDown(ExecutorService generatePool, ExecutorService savePool) {
     generatePool.shutdown();
-    while (true) {
-      if (generatePool.isTerminated()) {
-        break;
-      }
-
+    while (!generatePool.isTerminated()) {
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e) {
@@ -156,11 +162,7 @@ public class TrxGenerator {
     }
 
     savePool.shutdown();
-    while (true) {
-      if (savePool.isTerminated()) {
-        break;
-      }
-
+    while (!savePool.isTerminated()) {
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e) {

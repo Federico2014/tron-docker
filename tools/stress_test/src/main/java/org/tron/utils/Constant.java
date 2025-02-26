@@ -29,5 +29,5 @@ public class Constant {
   public static final String BROADCAST_URL = "broadcastUrl";
   public static final String BROADCAST_GENERATE = "broadcastGenerateTrx";
   public static final String BROADCAST_RELAY = "broadcastRelayTrx";
-
+  public static final String SAVE_TRX_ID = "saveTrxId";
 }

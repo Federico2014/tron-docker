@@ -55,24 +55,27 @@ public class BroadcastGenerate {
 
   public void broadcastTransactions() throws IOException, InterruptedException {
     long trxCount = 0;
+    boolean saveTrxId = TrxConfig.getInstance().isSaveTrxId();
     long startTime = System.currentTimeMillis();
     for (int index = 0; index <= dispatchCount; index++) {
       isFinishSend = false;
-      int taskIndex = index;
-      saveTransactionIDPool.submit(() -> {
-        int count = 0;
-        try (
-            FileWriter writer = new FileWriter(
-                output + File.separator + "gen-trxID" + taskIndex + ".csv");
-            BufferedWriter bufferedWriter = new BufferedWriter(writer)
-        ) {
-          processTransactionID(count, bufferedWriter);
-        } catch (IOException e) {
-          e.printStackTrace();
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-        }
-      });
+      if (saveTrxId) {
+        int taskIndex = index;
+        saveTransactionIDPool.submit(() -> {
+          int count = 0;
+          try (
+              FileWriter writer = new FileWriter(
+                  output + File.separator + "broadcast-trxID" + taskIndex + ".csv");
+              BufferedWriter bufferedWriter = new BufferedWriter(writer)
+          ) {
+            processTransactionID(count, bufferedWriter);
+          } catch (IOException e) {
+            e.printStackTrace();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+        });
+      }
 
       log.info("Start to process broadcast generate trx task {}", index);
       Transaction transaction;
@@ -92,13 +95,15 @@ public class BroadcastGenerate {
             startTps = System.currentTimeMillis();
           } else {
             apiWrapper.broadcastTransaction(transaction);
-            transactionIDs.add(transaction);
+            if (saveTrxId) {
+              transactionIDs.add(transaction);
+            }
             cnt++;
           }
         }
 
         isFinishSend = true;
-        while (!transactionIDs.isEmpty()) {
+        while (saveTrxId && !transactionIDs.isEmpty()) {
           Thread.sleep(200);
         }
       } catch (Exception e) {
@@ -110,6 +115,18 @@ public class BroadcastGenerate {
     long cost = System.currentTimeMillis() - startTime;
     log.info("broadcast generate trx size: {}, cost: {}, tps: {}",
         trxCount, cost, 1.0 * trxCount / cost * 1000);
+    shutDown(saveTransactionIDPool);
+  }
+
+  static void shutDown(ExecutorService saveTransactionIDPool) {
+    saveTransactionIDPool.shutdown();
+    while (!saveTransactionIDPool.isTerminated()) {
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+    }
   }
 
   public static Sha256Hash getID(Transaction transaction) {

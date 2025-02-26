@@ -71,7 +71,7 @@ public class TrxConfig {
 
   @Setter
   @Getter
-  private String trc10Id = "1000001";
+  private int trc10Id = 1000001;
 
   @Setter
   @Getter
@@ -117,6 +117,10 @@ public class TrxConfig {
   @Setter
   @Getter
   private boolean broadcastRelay = false;
+
+  @Setter
+  @Getter
+  private boolean saveTrxId = true;
 
   public static void initParams(Config config) {
     if (config.hasPath(GENERATE_TRX)) {
@@ -183,7 +187,7 @@ public class TrxConfig {
     INSTANCE.setToAddress(Hex.toHexString(Base58Check.base58ToBytes(config.getString(TO_ADDRESS))));
 
     if (config.hasPath(TRC10_ID)) {
-      INSTANCE.setTrc10Id(config.getString(TRC10_ID));
+      INSTANCE.setTrc10Id(config.getInt(TRC10_ID));
     }
 
     if (config.hasPath(TRC20_CONTRACT_ADDRESS)) {
@@ -233,6 +237,10 @@ public class TrxConfig {
 
     if (config.hasPath(BROADCAST_RELAY)) {
       INSTANCE.setBroadcastRelay(config.getBoolean(BROADCAST_RELAY));
+    }
+
+    if (config.hasPath(SAVE_TRX_ID)) {
+      INSTANCE.setSaveTrxId(config.getBoolean(SAVE_TRX_ID));
     }
   }
 
