@@ -17,6 +17,7 @@ Monitor the health and performance of your TRON nodes with integrated **Promethe
 We also provide tools to facilitate the CI and testing process:
 - **Gradle Docker**: Automate the build and testing of the `java-tron` Docker image using Gradle.
 - **DBFork**: Launch a private java-tron network based on the Mainnet database state, enabling shadow fork testing.
+- **Stress Test**: Execute the stress test and evaluate the performance of the java-tron fullnode.
 
 ## Getting Started
 
@@ -41,6 +42,8 @@ Then, navigate to the relevant directory and follow the instructions in the resp
 - **Tools**:
    - **Gradle Docker**: Automate Docker image builds and testing. Check the [gradle docker](./tools/docker/README.md) documentation.
    - **DBFork**: Perform shadow fork testing. Follow the [DBFork guidance](./tools/dbfork/README.md).
+   - **Stress Test**: Execute the stress testing. Follow the [stress test guidance](./tools/stress_test/README.md).
+
 
 ## Troubleshooting
 If you encounter any difficulties, please refer to the [Issue Work Flow](https://tronprotocol.github.io/documentation-en/developers/issue-workflow/#issue-work-flow), then raise an issue on [GitHub](https://github.com/tronprotocol/tron-docker/issues). For general questions, please use [Discord](https://discord.gg/cGKSsRVCGm) or [Telegram](https://t.me/TronOfficialDevelopersGroupEn).

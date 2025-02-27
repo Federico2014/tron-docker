@@ -72,7 +72,7 @@ public class BroadcastTrx implements Callable<Integer> {
       Block endBlock = apiWrapper.getNowBlock();
       long startNumber = startBlock.getBlockHeader().getRawData().getNumber();
       long endNumber = endBlock.getBlockHeader().getRawData().getNumber();
-      Statistic.result(startNumber, endNumber, "stress-test-output/broadcast-generate-result.txt");
+      Statistic.result(startNumber, endNumber, "stress-test-output/broadcast-generate-result");
     }
 
     if (config.isBroadcastRelay()) {
@@ -82,7 +82,7 @@ public class BroadcastTrx implements Callable<Integer> {
       Block endBlock = apiWrapper.getNowBlock();
       long startNumber = startBlock.getBlockHeader().getRawData().getNumber();
       long endNumber = endBlock.getBlockHeader().getRawData().getNumber();
-      Statistic.result(startNumber, endNumber, "stress-test-output/broadcast-relay-result.txt");
+      Statistic.result(startNumber, endNumber, "stress-test-output/broadcast-relay-result");
     }
 
     return 0;
