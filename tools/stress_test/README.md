@@ -105,8 +105,8 @@ Then execute the following `generate` commands:
 git clone https://github.com/tronprotocol/tron-docker.git
 # enter the directory
 cd tron-docker/tools/gradlew
-# compile the database fork tool
-./gradlew ./gradlew :stress-test:build
+# compile the stress test tool
+./gradlew :stress-test:build
 # execute full command
 nohup java -jar ../stress_test/build/libs/stresstest.jar generate -c /path/to/stress.conf >> start.log 2>&1 &
 # check the log
