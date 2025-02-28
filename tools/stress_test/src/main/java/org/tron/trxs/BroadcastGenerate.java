@@ -45,7 +45,7 @@ public class BroadcastGenerate {
       Sha256Hash id = getID(transaction);
       bufferedWriter.write(id.toString());
       bufferedWriter.newLine();
-      if (count % 1000 == 0) {
+      if (count % 10000 == 0) {
         bufferedWriter.flush();
         log.info("transaction id size: {}", transactionIDs.size());
       }
@@ -56,8 +56,11 @@ public class BroadcastGenerate {
   public void broadcastTransactions() throws IOException, InterruptedException {
     long trxCount = 0;
     boolean saveTrxId = TrxConfig.getInstance().isSaveTrxId();
+    int totalTask =
+        TrxConfig.getInstance().getTotalTrxCnt() % TrxConfig.getInstance().getSingleTaskCnt() == 0
+            ? dispatchCount : dispatchCount + 1;
     long startTime = System.currentTimeMillis();
-    for (int index = 0; index <= dispatchCount; index++) {
+    for (int index = 0; index < totalTask; index++) {
       isFinishSend = false;
       if (saveTrxId) {
         int taskIndex = index;
@@ -77,7 +80,7 @@ public class BroadcastGenerate {
         });
       }
 
-      log.info("Start to process broadcast generate trx task {}", index);
+      log.info("Start to process broadcast generate trx task {}/{}", index + 1, totalTask);
       Transaction transaction;
       int cnt = 0;
       try (FileInputStream fis = new FileInputStream(
@@ -87,6 +90,8 @@ public class BroadcastGenerate {
         while ((transaction = Transaction.parseDelimitedFrom(fis)) != null) {
           trxCount++;
           if (cnt > TrxConfig.getInstance().getTps()) {
+            log.info("broadcast task {}/{} tps has reached: {}", index + 1, totalTask,
+                TrxConfig.getInstance().getTps());
             endTps = System.currentTimeMillis();
             if (endTps - startTps < 1000) {
               Thread.sleep(1000 - (endTps - startTps));

@@ -63,7 +63,7 @@ including `transfer`, `transferTrc10`, `transferTrc20`. The sum of all transacti
 
 `privateKey`: configure the private key used to sign the transactions;
 
-`toAddress`: configure the receiver address use to build the transactions;
+`toAddress`: configure the receiver address used to build the transactions;
 
 `trc10Id`: configure the TRC10 id used to build the `transferTrc10` transactions;
 
@@ -96,7 +96,6 @@ including `transfer`, `transferTrc10`, `transferTrc20`. The sum of all transacti
 *Note*: you can use the [dbfork](../dbfork/README.md) tool to get enough `TRX/TRC10/TRC20` balances of address corresponding
 to the `privateKey` for the stress test.
 
-
 ## Generate
 To generate the transactions, you need to set `generateTrx = true` and configure other options according you demands.
 Then execute the following `generate` commands:
@@ -114,9 +113,12 @@ tail -f logs/stress_test.log
 ```
 The generated transactions will be stored in the `generate-trx*.csv` files in current `stress-test-output` directory.
 
+*Note*: the expiration time of the generated transactions is 24 hours, which means you need to broadcast the stored transactions in 24 hours.
+
 ## Broadcast
 To broadcast the transactions, you need to set `broadcastGenerateTrx = true` and configure other options according you demands.
-Then execute the following `broadcast` command:
+Then execute the following `broadcast` command, which will automatically read the transactions stored in `generate-trx*.csv` files and
+broadcast them to the test network.
 
 ```
 # execute full command
@@ -145,7 +147,8 @@ other related the parameters, then execute the `generate` command.
 
 The relayed transactions will be stored in the `relay-trx.csv` file in current `stress-test-output` directory.
 
-To broadcast the relayed transactions, you need set `broadcastRelayTrx = true` and execute the `broadcast` command.
+To broadcast the relayed transactions, you need set `broadcastRelayTrx = true` and execute the `broadcast` command,
+which will broadcast the transactions stored in the `relay-trx.csv` file.
 
 *Note*: most of the relayed transactions may be illegal in the stress test network. You need to change the
 transaction verification condition in java-tron source code to replay the transactions.

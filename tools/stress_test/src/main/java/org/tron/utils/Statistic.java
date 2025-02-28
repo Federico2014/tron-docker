@@ -72,6 +72,7 @@ public class Statistic {
     float missBlockRate = (float) (1.0 * (actualTime - expectedTime) / actualTime);
 
     log.info("Stress test report:");
+    log.info("statistic block range: startBlock: {}, endBlock: {}", startNumber, endNumber);
     log.info(String.format("total transactions: %d", totalTrxCnt));
     log.info(String.format("cost time: %f minutes", 1.0 * actualTime / (60 * 1000)));
     log.info(String.format("max block size: %d", maxTrxCntInOneBlock));
@@ -82,6 +83,8 @@ public class Statistic {
     try (BufferedWriter writer = new BufferedWriter(new FileWriter(output))) {
       writer.write("Stress test report:");
       writer.newLine();
+      writer.write(String
+          .format("statistic block range: startBlock: %d, endBlock: %d", startNumber, endNumber));
       writer.write(String.format("total transactions: %d", totalTrxCnt));
       writer.newLine();
       writer.write(String.format("cost time: %f minutes", 1.0 * actualTime / (60 * 1000)));
