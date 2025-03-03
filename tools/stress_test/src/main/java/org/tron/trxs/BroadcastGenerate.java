@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -22,12 +24,14 @@ public class BroadcastGenerate {
   private volatile boolean isFinishSend = false;
   private ConcurrentLinkedQueue<Transaction> transactionIDs = new ConcurrentLinkedQueue<>();
 
-  private ApiWrapper apiWrapper;
+  private List<ApiWrapper> apiWrapper;
 
   private static ExecutorService saveTransactionIDPool = Executors
       .newFixedThreadPool(1, r -> new Thread(r, "save-gen-trx-id"));
 
-  public BroadcastGenerate(TrxConfig config, ApiWrapper apiWrapper) {
+  private final Random random = new Random(System.currentTimeMillis());
+
+  public BroadcastGenerate(TrxConfig config, List<ApiWrapper> apiWrapper) {
     this.dispatchCount = config.getTotalTrxCnt() / config.getSingleTaskCnt();
     this.apiWrapper = apiWrapper;
   }
@@ -59,6 +63,7 @@ public class BroadcastGenerate {
     int totalTask =
         TrxConfig.getInstance().getTotalTrxCnt() % TrxConfig.getInstance().getSingleTaskCnt() == 0
             ? dispatchCount : dispatchCount + 1;
+    int apiSize = apiWrapper.size();
     long startTime = System.currentTimeMillis();
     for (int index = 0; index < totalTask; index++) {
       isFinishSend = false;
@@ -99,7 +104,7 @@ public class BroadcastGenerate {
             cnt = 0;
             startTps = System.currentTimeMillis();
           } else {
-            apiWrapper.broadcastTransaction(transaction);
+            apiWrapper.get(random.nextInt(apiSize)).broadcastTransaction(transaction);
             if (saveTrxId) {
               transactionIDs.add(transaction);
             }

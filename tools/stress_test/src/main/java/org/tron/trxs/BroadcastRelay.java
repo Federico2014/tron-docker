@@ -7,6 +7,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -21,13 +23,15 @@ public class BroadcastRelay {
   private volatile boolean isFinishSend = false;
   private final ConcurrentLinkedQueue<Transaction> transactionIDs = new ConcurrentLinkedQueue<>();
 
-  private final ApiWrapper apiWrapper;
+  private final List<ApiWrapper> apiWrapper;
   private final String output = "stress-test-output";
 
   private final ExecutorService saveTransactionIDPool = Executors
       .newFixedThreadPool(1, r -> new Thread(r, "save-relay-trx-id"));
 
-  public BroadcastRelay(ApiWrapper apiWrapper) {
+  private final Random random = new Random(System.currentTimeMillis());
+
+  public BroadcastRelay(List<ApiWrapper> apiWrapper) {
     this.apiWrapper = apiWrapper;
   }
 
@@ -70,6 +74,7 @@ public class BroadcastRelay {
       });
     }
 
+    int apiSize = apiWrapper.size();
     long startTime = System.currentTimeMillis();
     log.info("Start to process relay transaction broadcast task");
     try (FileInputStream fis = new FileInputStream(output + File.separator + "relay-trx.csv")) {
@@ -88,7 +93,7 @@ public class BroadcastRelay {
           startTps = System.currentTimeMillis();
         } else {
           try {
-            apiWrapper.broadcastTransaction(transaction);
+            apiWrapper.get(random.nextInt(apiSize)).broadcastTransaction(transaction);
           } catch (Exception e) {
             e.printStackTrace();
           }

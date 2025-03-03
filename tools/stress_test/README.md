@@ -7,8 +7,8 @@ Finally, it provides a TPS (Transactions Per Second) report as the test result.
 To use the stress test tool, you need to configure the `stress.conf` firstly. Here is an example:
 ```
 generateTrx = true
-totalGenerateTrxCnt = 45000
-singleTaskTrxCount = 10000
+totalGenerateTrxCnt = 1000000
+singleTaskTrxCount = 100000
 
 generateTrxType = {
   transfer = 60
@@ -38,7 +38,11 @@ relayTrx = {
 
 broadcastGenerateTrx = true
 broadcastRelayTrx = false
-broadcastUrl = "127.0.0.1:50051"
+broadcastUrl = [
+  "127.0.0.1:50051",
+  "127.0.0.2:50051",
+  "127.0.0.3:50051"
+]
 tps = 1000
 saveTrxId = true
 ```
@@ -87,7 +91,7 @@ including `transfer`, `transferTrc10`, `transferTrc20`. The sum of all transacti
 
 `broadcastRelayTrx`: configure whether to broadcast the relayed transactions;
 
-`broadcastUrl`: configure the broadcast url;
+`broadcastUrl`: configure the broadcast url list;
 
 `tps`: configure the TPS for broadcasting transactions;
 
@@ -152,3 +156,18 @@ which will broadcast the transactions stored in the `relay-trx.csv` file.
 
 *Note*: most of the relayed transactions may be illegal in the stress test network. You need to change the
 transaction verification condition in java-tron source code to replay the transactions.
+
+
+## TPS statistic
+If the above the `broadcast` command doesn't generate `broadcast-generate-result` statistic result,
+we can still compute the TPS from specified block range by executing the following `statistic` command:
+
+```
+# execute full command
+java -jar ../stress_test/build/libs/stresstest.jar statistic -c /path/to/stress.conf --start-block 68583088 --end-block 68583950 --output tps-statistic-result
+# check the log
+tail -f logs/stress_test.log
+```
+- `start-block`: the start block number for the tps statistic;
+- `end-block`: the end block number for the tps statistic;
+- `output`: output for the tps statistic result.

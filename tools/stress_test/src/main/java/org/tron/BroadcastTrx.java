@@ -5,6 +5,8 @@ import com.typesafe.config.ConfigFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.trident.core.ApiWrapper;
@@ -38,7 +40,7 @@ public class BroadcastTrx implements Callable<Integer> {
   @CommandLine.Option(names = {"-h", "--help"})
   private boolean help;
 
-  private ApiWrapper apiWrapper;
+  private List<ApiWrapper> apiWrapper = new ArrayList<>();
 
   @Override
   public Integer call() throws IOException, InterruptedException, IllegalException {
@@ -61,15 +63,22 @@ public class BroadcastTrx implements Callable<Integer> {
     TrxConfig.initParams(stressConfig);
     TrxConfig config = TrxConfig.getInstance();
 
-    apiWrapper = new ApiWrapper(config.getBroadcastUrl(), config.getBroadcastUrl(),
-        config.getPrivateKey());
-    Statistic.setApiWrapper(apiWrapper);
+    if (config.getBroadcastUrl().isEmpty()) {
+      log.error("no available broadcast url found.");
+      spec.commandLine().getErr().println("no available broadcast url found.");
+      System.exit(1);
+    }
+    config.getBroadcastUrl().stream().forEach(
+        url -> apiWrapper.add(new ApiWrapper(url, url, config.getPrivateKey()))
+    );
+
+    Statistic.setApiWrapper(apiWrapper.get(0));
 
     if (config.isBroadcastGenerate()) {
       BroadcastGenerate broadcastGenerate = new BroadcastGenerate(config, apiWrapper);
-      Block startBlock = apiWrapper.getNowBlock();
+      Block startBlock = apiWrapper.get(0).getNowBlock();
       broadcastGenerate.broadcastTransactions();
-      Block endBlock = apiWrapper.getNowBlock();
+      Block endBlock = apiWrapper.get(0).getNowBlock();
       long startNumber = startBlock.getBlockHeader().getRawData().getNumber();
       long endNumber = endBlock.getBlockHeader().getRawData().getNumber();
       Statistic.result(startNumber, endNumber, "stress-test-output/broadcast-generate-result");
@@ -77,9 +86,9 @@ public class BroadcastTrx implements Callable<Integer> {
 
     if (config.isBroadcastRelay()) {
       BroadcastRelay broadcastRelay = new BroadcastRelay(apiWrapper);
-      Block startBlock = apiWrapper.getNowBlock();
+      Block startBlock = apiWrapper.get(0).getNowBlock();
       broadcastRelay.broadcastTransactions();
-      Block endBlock = apiWrapper.getNowBlock();
+      Block endBlock = apiWrapper.get(0).getNowBlock();
       long startNumber = startBlock.getBlockHeader().getRawData().getNumber();
       long endNumber = endBlock.getBlockHeader().getRawData().getNumber();
       Statistic.result(startNumber, endNumber, "stress-test-output/broadcast-relay-result");

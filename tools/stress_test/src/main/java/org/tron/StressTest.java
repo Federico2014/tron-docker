@@ -4,7 +4,7 @@ import java.util.concurrent.Callable;
 import picocli.CommandLine;
 
 @CommandLine.Command(subcommands = {CommandLine.HelpCommand.class, GenerateTrx.class,
-    BroadcastTrx.class})
+    BroadcastTrx.class, StatisticTps.class})
 public class StressTest implements Callable<Integer> {
 
   public static void main(String[] args) {
