@@ -5,6 +5,9 @@ If you encounter any problems during the build or testing process, please refer 
 
 ## Prerequisites
 
+- Docker
+- JDK 8 (required by Gradle)
+
 Follow the [getting-started](https://github.com/tronprotocol/tron-docker/blob/main/README.md#getting-started) guide to download Docker and the tron-docker repository. Then, navigate to the gradlew directory.
 ```
 cd ./tools/gradlew
