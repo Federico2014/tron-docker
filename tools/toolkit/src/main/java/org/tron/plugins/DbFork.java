@@ -75,13 +75,13 @@ import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
-@Slf4j(topic = "dbfork")
-@Command(name = "dbfork", mixinStandardHelpOptions = true, version = "DBFork 1.0",
+@Slf4j(topic = "fork")
+@Command(name = "fork",
     description = "Modify the database of java-tron for shadow fork testing.",
     exitCodeListHeading = "Exit Codes:%n",
     exitCodeList = {
         "0:Successful",
-        "n:Internal error: exception occurred,please check logs/dbfork.log"})
+        "n:Internal error: exception occurred, please check logs/toolkit.log"})
 public class DbFork implements Callable<Integer> {
 
   private DBInterface witnessStore;
@@ -107,22 +107,12 @@ public class DbFork implements Callable<Integer> {
           + " Default: ${DEFAULT-VALUE}")
   private String config;
 
-  @CommandLine.Option(names = {"--db-engine"},
-      defaultValue = "leveldb",
-      description = "database engine: leveldb or rocksdb. Default: ${DEFAULT-VALUE}")
-  private String dbEngine;
-
   @CommandLine.Option(names = {"-r", "--retain-witnesses"},
       description = "retain the previous witnesses and active witnesses.")
   private boolean retain;
 
   @CommandLine.Option(names = {"-h", "--help"})
   private boolean help;
-
-  public static void main(String[] args) {
-    int exitCode = new CommandLine(new DbFork()).execute(args);
-    System.exit(exitCode);
-  }
 
   private void initStore() throws IOException, RocksDBException {
     String srcDir = database + File.separator + "database";
@@ -165,9 +155,6 @@ public class DbFork implements Callable<Integer> {
     }
 
     initStore();
-
-    logger.info("Choose the DB engine: {}.", dbEngine);
-    spec.commandLine().getOut().format("Choose the DB engine: %s.", dbEngine).println();
 
     if (!retain) {
       logger.info("Erase the previous witnesses and active witnesses.");

@@ -22,7 +22,7 @@ import picocli.CommandLine;
     exitCodeListHeading = "Exit Codes:%n",
     exitCodeList = {
         "0:Successful",
-        "n:Internal error: exception occurred,please check toolkit.log"})
+        "n:Internal error: exception occurred, please check toolkit.log"})
 public class DbCopy implements Callable<Integer> {
 
 
