@@ -46,6 +46,13 @@ dependencies {
     implementation 'io.github.tronprotocol:leveldb:1.18.2'
     implementation 'com.github.tronprotocol.java-tron:protocol:GreatVoyage-v4.7.7'
 
+    implementation('com.github.tronprotocol.java-tron:chainbase:GreatVoyage-v4.7.7') {
+        exclude group: 'com.fasterxml.jackson', module: 'jackson-bom'
+        exclude group: "pull-parser", module: "pull-parser" // https://www.jianshu.com/p/ef6936448aa6
+    }
+    implementation platform('com.fasterxml.jackson:jackson-bom:2.14.0')
+    implementation group: 'info.picocli', name: 'picocli', version: '4.6.3'
+
     compileOnly 'org.projectlombok:lombok:1.18.12'
     annotationProcessor 'org.projectlombok:lombok:1.18.12'
     testCompileOnly 'org.projectlombok:lombok:1.18.12'
