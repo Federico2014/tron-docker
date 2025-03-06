@@ -137,11 +137,11 @@ After broadcasting all the transactions, it will generate the `stress-test-outpu
 file to report the stress-test statistic result. For example:
 ```
 Stress test report:
-total transactions: 3040
-cost time: 0.250000 minutes
-max block size: 1129
+total transactions: 998189
+cost time: 34.300000 minutes
+max block size: 1903
 min block size: 0
-tps: 202.666672
+tps: 485.028656
 miss block rate: 0.000000
 ```
 

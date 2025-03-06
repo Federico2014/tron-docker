@@ -92,14 +92,18 @@ public class BroadcastGenerate {
           output + File.separator + "generate-trx" + index + ".csv")) {
         long startTps = System.currentTimeMillis();
         long endTps;
+        float currentTps;
         while ((transaction = Transaction.parseDelimitedFrom(fis)) != null) {
           trxCount++;
           if (cnt > TrxConfig.getInstance().getTps()) {
-            log.info("broadcast task {}/{} tps has reached: {}", index + 1, totalTask,
+            log.info("real-time broadcast task {}/{} tps has reached: {}", index + 1, totalTask,
                 TrxConfig.getInstance().getTps());
             endTps = System.currentTimeMillis();
             if (endTps - startTps < 1000) {
               Thread.sleep(1000 - (endTps - startTps));
+            } else {
+              currentTps = cnt * 1000.0f / (endTps - startTps) ;
+              log.info("real-time broadcast task {}/{} tps is {}", index + 1, totalTask, currentTps);
             }
             cnt = 0;
             startTps = System.currentTimeMillis();
