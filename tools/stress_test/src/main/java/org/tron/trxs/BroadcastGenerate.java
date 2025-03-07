@@ -96,10 +96,10 @@ public class BroadcastGenerate {
         while ((transaction = Transaction.parseDelimitedFrom(fis)) != null) {
           trxCount++;
           if (cnt > TrxConfig.getInstance().getTps()) {
-            log.info("real-time broadcast task {}/{} tps has reached: {}", index + 1, totalTask,
-                TrxConfig.getInstance().getTps());
             endTps = System.currentTimeMillis();
-            if (endTps - startTps < 1000) {
+            if (endTps - startTps <= 1000) {
+              log.info("real-time broadcast task {}/{} tps has reached: {}", index + 1, totalTask,
+                  TrxConfig.getInstance().getTps());
               Thread.sleep(1000 - (endTps - startTps));
             } else {
               currentTps = cnt * 1000.0f / (endTps - startTps) ;
