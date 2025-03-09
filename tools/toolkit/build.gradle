@@ -48,7 +48,7 @@ dependencies {
 
     implementation('com.github.tronprotocol.java-tron:chainbase:GreatVoyage-v4.7.7') {
         exclude group: 'com.fasterxml.jackson', module: 'jackson-bom'
-        exclude group: "pull-parser", module: "pull-parser" // https://www.jianshu.com/p/ef6936448aa6
+        exclude group: "pull-parser", module: "pull-parser"
     }
     implementation platform('com.fasterxml.jackson:jackson-bom:2.14.0')
     implementation group: 'info.picocli', name: 'picocli', version: '4.6.3'
