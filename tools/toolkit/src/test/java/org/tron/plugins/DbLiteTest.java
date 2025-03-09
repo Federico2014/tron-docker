@@ -4,6 +4,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -71,7 +72,7 @@ public class DbLiteTest {
   public void init() throws IOException {
     dbPath = folder.newFolder().toString();
     Args.setParam(new String[]{"-d", dbPath, "-w", "--p2p-disable", "true"},
-        "config-localtest.conf");
+        getConfig("config-localtest.conf"));
     // allow account root
     Args.getInstance().setAllowAccountStateRoot(1);
     Args.getInstance().setRpcPort(PublicMethod.chooseRandomPort());
@@ -171,5 +172,10 @@ public class DbLiteTest {
         return;
       }
     }
+  }
+
+  private static String getConfig(String config) {
+    URL path = DbLiteTest.class.getClassLoader().getResource(config);
+    return path == null ? null : path.getPath();
   }
 }

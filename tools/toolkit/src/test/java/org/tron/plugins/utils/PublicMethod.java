@@ -18,6 +18,7 @@ import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
 import org.tron.protos.contract.BalanceContract;
+import org.tron.protos.contract.BalanceContract.TransferContract;
 
 public class PublicMethod {
 
@@ -45,7 +46,7 @@ public class PublicMethod {
     int times = 0;
     while (times++ <= 2) {
 
-      BalanceContract.TransferContract.Builder builder =
+      TransferContract.Builder builder =
           BalanceContract.TransferContract.newBuilder();
       com.google.protobuf.ByteString bsTo = com.google.protobuf.ByteString.copyFrom(to);
       com.google.protobuf.ByteString bsOwner = ByteString.copyFrom(owner);
@@ -53,7 +54,7 @@ public class PublicMethod {
       builder.setOwnerAddress(bsOwner);
       builder.setAmount(amount);
 
-      BalanceContract.TransferContract contract = builder.build();
+      TransferContract contract = builder.build();
       Protocol.Transaction transaction = blockingStubFull.createTransaction(contract);
       if (transaction == null || transaction.getRawData().getContractCount() == 0) {
         continue;
