@@ -137,7 +137,7 @@ public class DbFork implements Callable<Integer> {
     File dbFile = Paths.get(database).toFile();
     if (!dbFile.exists() || !dbFile.isDirectory()) {
       logger.error("Database [" + database + "] not exists!");
-      spec.commandLine().getErr().format("Database [" + database + "] not exists!").println();
+      spec.commandLine().getErr().format("Database %s not exists!", database).println();
       System.exit(-1);
     }
     File tmp = Paths.get(database, "database", "tmp").toFile();
@@ -151,7 +151,7 @@ public class DbFork implements Callable<Integer> {
       forkConfig = ConfigFactory.parseFile(Paths.get(config).toFile());
     } else {
       logger.error("Fork config file [" + config + "] not exists!");
-      spec.commandLine().getErr().format("Fork config file [" + config + "] not exists!").println();
+      spec.commandLine().getErr().format("Fork config file: %s not exists!", config).println();
       System.exit(-1);
     }
 
@@ -162,9 +162,8 @@ public class DbFork implements Callable<Integer> {
       spec.commandLine().getOut().println("Erase the previous witnesses and active witnesses.");
       witnessScheduleStore.delete(ACTIVE_WITNESSES);
       DBIterator iterator = witnessStore.iterator();
-      while (iterator.hasNext()) {
-        Map.Entry<byte[], byte[]> entry = iterator.next();
-        witnessStore.delete(entry.getKey());
+      for (iterator.seekToFirst(); iterator.valid(); iterator.next()) {
+        witnessStore.delete(iterator.getKey());
       }
     } else {
       logger.warn("Keep the previous witnesses and active witnesses.");

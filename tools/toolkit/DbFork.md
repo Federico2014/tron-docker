@@ -47,14 +47,11 @@ If you need to perform multiple shadow fork tests, you'd better backup the `outp
 java -jar Toolkit.jar db copy output-directory output-directory-bak
 ```
 
-
 ### Run the DBFork tool
 Run the DBFork tool in the Toolkit to modify the related data. The available parameters are:
 - `-c | --config=<config>`: config the new witnesses, balances, etc for shadow
   fork. Default: fork.conf
 - `-d | --database-directory=<database>`: java-tron database directory path. Default: output-directory
--  `--db-engine=<dbEngine>`:
-  database engine: leveldb or rocksdb. Default: leveldb
 - `-h | --help`
 - `-r | --retain-witnesses`: retain the previous witnesses and active witnesses. Default: false
 
