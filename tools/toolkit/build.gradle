@@ -23,7 +23,7 @@ tasks.named('jar') {
 }
 
 shadowJar {
-    archiveBaseName.set('toolkit')
+    archiveBaseName.set('Toolkit')
     archiveClassifier.set('')
     archiveVersion.set('')
     mergeServiceFiles()

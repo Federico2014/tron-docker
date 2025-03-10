@@ -2,6 +2,31 @@
 
 This package contains a set of tools for TRON, the followings are the documentation for each tool.
 
+## Build The Toolkit
+
+First, you can build the toolkit by executing the following command:
+```shell script
+# clone the tron-docker
+git clone https://github.com/tronprotocol/tron-docker.git
+# enter gradlew directory
+cd tron-docker/tools/gradlew
+# build the toolkit
+./gradlew :toolkit:build
+# execute the command
+java -jar ../dbfork/build/libs/Toolkit.jar db -h
+```
+The most commonly used db commands are:
+- `help`: Displays help information about the specified command
+- `mv, move`: Move db to pre-set new path . For example HDD,reduce storage
+expenses.
+- `archive`: A helper to rewrite leveldb manifest.
+- `convert`: Covert leveldb to rocksdb.
+- `lite`: Split lite data for java-tron.
+- `cp, copy`: Quick copy leveldb or rocksdb data.
+- `root`: compute merkle root for tiny db. NOTE: large db may GC overhead
+limit exceeded.
+- `fork`: Modify the database of java-tron for shadow fork testing.
+
 ## DB Archive
 
 DB archive provides the ability to reformat the manifest according to the current `database`, parameters are compatible with the previous `ArchiveManifest`.
@@ -145,3 +170,18 @@ NOTE: large db may GC overhead limit exceeded.
 - `<src>`: Source path for database. Default: output-directory/database
 - `--db`: db name.
 - `-h | --help`: provide the help info
+
+
+## DB Fork
+Database fork tool can help launch a private java-tron FullNode or network based on the state of public chain database to support shadow fork testing.
+
+### Available parameters:
+- `-c, --config=<config>`: config the new witnesses, balances, etc for shadow
+fork. Default: fork.conf
+- `-d, --database-directory=<database>`:
+java-tron database directory path. Default:
+output-directory
+- `-r, --retain-witnesses`: retain the previous witnesses and active witnesses.
+- `-h, --help`: provide the help info
+
+Please refer [DbFork](DbFork.md) guidance for more details.

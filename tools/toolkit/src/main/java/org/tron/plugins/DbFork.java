@@ -64,7 +64,8 @@ import org.tron.common.utils.Commons;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.StorageRowCapsule;
 import org.tron.core.capsule.WitnessCapsule;
-import org.tron.plugins.utils.Utils;
+import org.tron.plugins.utils.Constant;
+import org.tron.plugins.utils.FileUtils;
 import org.tron.plugins.utils.db.DBInterface;
 import org.tron.plugins.utils.db.DBIterator;
 import org.tron.plugins.utils.db.DbTool;
@@ -141,7 +142,7 @@ public class DbFork implements Callable<Integer> {
     }
     File tmp = Paths.get(database, "database", "tmp").toFile();
     if (tmp.exists()) {
-      Utils.deleteDir(tmp);
+      FileUtils.deleteDir(tmp);
     }
 
     Config forkConfig = ConfigFactory.load();
@@ -206,7 +207,7 @@ public class DbFork implements Callable<Integer> {
           .thenComparing(Comparator.comparingInt(ByteString::hashCode).reversed()));
       List<ByteString> activeWitnesses = witnessList.subList(0,
           witnesses.size() >= MAX_ACTIVE_WITNESS_NUM ? MAX_ACTIVE_WITNESS_NUM : witnessList.size());
-      witnessScheduleStore.put(ACTIVE_WITNESSES, Utils.getActiveWitness(activeWitnesses));
+      witnessScheduleStore.put(ACTIVE_WITNESSES, getActiveWitness(activeWitnesses));
       logger.info("{} witnesses and {} active witnesses have been modified.",
           witnesses.size(), activeWitnesses.size());
       spec.commandLine().getOut().format("%d witnesses and %d active witnesses have been modified.",
@@ -404,5 +405,16 @@ public class DbFork implements Callable<Integer> {
 
     DbTool.close();
     return 0;
+  }
+
+  public static byte[] getActiveWitness(List<ByteString> witnesses) {
+    byte[] ba = new byte[witnesses.size() * Constant.ADDRESS_BYTE_ARRAY_LENGTH];
+    int i = 0;
+    for (ByteString address : witnesses) {
+      System.arraycopy(address.toByteArray(), 0,
+          ba, i * Constant.ADDRESS_BYTE_ARRAY_LENGTH, Constant.ADDRESS_BYTE_ARRAY_LENGTH);
+      i++;
+    }
+    return ba;
   }
 }

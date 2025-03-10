@@ -16,7 +16,16 @@ Monitor the health and performance of your TRON nodes with integrated **Promethe
 ### 🛠️ Tools
 We also provide tools to facilitate the CI and testing process:
 - **Gradle Docker**: Automate the build and testing of the `java-tron` Docker image using Gradle.
-- **DBFork**: Launch a private java-tron network based on the Mainnet database state, enabling shadow fork testing.
+- **Toolkit**: This package contains a set of database tools for TRON:
+  - `mv, move`: Move db to pre-set new path. For example HDD,reduce storage
+  expenses.
+  - `archive`: A helper to rewrite leveldb manifest.
+  - `convert`: Covert leveldb to rocksdb.
+  - `lite`: Split lite data for java-tron.
+  - `cp, copy`: Quick copy leveldb or rocksdb data.
+  - `root`: compute merkle root for tiny db. NOTE: large db may GC overhead
+  limit exceeded.
+  - `fork`: Modify the database of java-tron for shadow fork testing.
 
 ## Prerequisites
 Please ensure you have the latest versions of Docker and Docker Compose installed by downloading them from the official websites:
@@ -124,7 +133,7 @@ To start all available features, or you want more customized operations, navigat
 
 - **Tools**:
    - **Gradle Docker**: Automate Docker image builds and testing. Check the [gradle docker](./tools/docker/README.md) documentation.
-   - **DBFork**: Perform shadow fork testing. Follow the [DBFork guidance](./tools/dbfork/README.md).
+   - **Toolkit**: Perform a set of database related operations. Follow the [Toolkit guidance](./tools/toolkit/README.md).
 
 ## Troubleshooting
 If you encounter any difficulties, please refer to the [Issue Work Flow](https://tronprotocol.github.io/documentation-en/developers/issue-workflow/#issue-work-flow), then raise an issue on [GitHub](https://github.com/tronprotocol/tron-docker/issues). For general questions, please use [Discord](https://discord.gg/cGKSsRVCGm) or [Telegram](https://t.me/TronOfficialDevelopersGroupEn).

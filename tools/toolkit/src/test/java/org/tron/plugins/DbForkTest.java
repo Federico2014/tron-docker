@@ -1,5 +1,6 @@
 package org.tron.plugins;
 
+import static org.tron.plugins.DbFork.getActiveWitness;
 import static org.tron.plugins.utils.Constant.*;
 
 import com.google.common.primitives.Bytes;
@@ -23,7 +24,6 @@ import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.WitnessCapsule;
 import org.tron.plugins.utils.Constant;
 import org.tron.plugins.utils.FileUtils;
-import org.tron.plugins.utils.Utils;
 import org.tron.plugins.utils.db.DBInterface;
 import org.tron.plugins.utils.db.DbTool;
 import picocli.CommandLine;
@@ -115,7 +115,7 @@ public class DbForkTest {
             return address;
           }
       ).collect(Collectors.toList());
-      Assert.assertArrayEquals(Utils.getActiveWitness(witnessAddresses),
+      Assert.assertArrayEquals(getActiveWitness(witnessAddresses),
           witnessScheduleStore.get(ACTIVE_WITNESSES));
 
       witnesses.stream().forEach(
@@ -199,7 +199,7 @@ public class DbForkTest {
     close();
   }
 
-  private static String getConfig(String config) {
+  private String getConfig(String config) {
     URL path = DbForkTest.class.getClassLoader().getResource(config);
     return path == null ? null : path.getPath();
   }

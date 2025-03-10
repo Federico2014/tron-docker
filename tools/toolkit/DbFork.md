@@ -147,16 +147,9 @@ set `latestBlockHeaderTimestamp` as current millisecond time to avoid the delay 
 
 set `maintenanceTimeInterval` and `nextMaintenanceTime` optionally to facilitate testing.
 
-Execute database fork command:
+Execute the fork command:
 ```shell script
-# clone the tron-docker
-git clone https://github.com/tronprotocol/tron-docker.git
-# enter the directory
-cd tron-docker/tools/gradlew
-# compile the database fork tool
-./gradlew :dbfork:build
-# execute full command
-java -jar ../dbfork/build/libs/dbfork.jar -c /path/to/fork.conf -d /path/to/output-directory
+java -jar Toolkit.jar db fork -c /path/to/fork.conf -d /path/to/output-directory
 ```
 
 ### Launch the FullNode
