@@ -55,6 +55,12 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok:1.18.12'
     testCompileOnly 'org.projectlombok:lombok:1.18.12'
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.12'
+
+    implementation('com.github.tronprotocol.java-tron:framework:GreatVoyage-v4.7.7') {
+        exclude group: 'com.fasterxml.jackson', module: 'jackson-bom'
+        exclude group: "pull-parser", module: "pull-parser"
+    }
+    implementation platform('com.fasterxml.jackson:jackson-bom:2.14.0')
 }
 
 application {

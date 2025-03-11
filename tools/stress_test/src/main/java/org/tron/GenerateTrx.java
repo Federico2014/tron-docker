@@ -47,12 +47,12 @@ public class GenerateTrx implements Callable<Integer> {
     if (file.exists() && file.isFile()) {
       stressConfig = ConfigFactory.parseFile(Paths.get(config).toFile());
     } else {
-      log.error("stress test config file {} not exists!", config);
+      logger.error("stress test config file {} not exists!", config);
       System.exit(-1);
     }
     TrxConfig.initParams(stressConfig);
     TrxConfig config = TrxConfig.getInstance();
-    log.info("load the config file successfully!");
+    logger.info("load the config file successfully!");
 
     if (config.isGenerateTrx()) {
       int dispatchCount = config.getTotalTrxCnt() / config.getSingleTaskCnt();
@@ -61,7 +61,7 @@ public class GenerateTrx implements Callable<Integer> {
         dispatchCount = dispatchCount + 1;
         lastTaskCnt = config.getTotalTrxCnt() % config.getSingleTaskCnt();
       }
-      log.info("start to generate the transactions");
+      logger.info("start to generate the transactions");
       TrxFactory.initInstance();
       for (int i = 0; i < dispatchCount; i++) {
         new TrxGenerator(
@@ -69,13 +69,13 @@ public class GenerateTrx implements Callable<Integer> {
                 : config.getSingleTaskCnt(), i).setTotalTask(dispatchCount).start();
       }
 
-      log.info("finish generating the transactions");
+      logger.info("finish generating the transactions");
     }
 
     if (config.isRelay()) {
-      log.info("start to relay the transactions");
+      logger.info("start to relay the transactions");
       new ReplayTrxGenerator().start();
-      log.info("finish relaying the transactions");
+      logger.info("finish relaying the transactions");
     }
 
     return 0;

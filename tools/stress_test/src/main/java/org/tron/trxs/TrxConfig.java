@@ -133,7 +133,7 @@ public class TrxConfig {
         && config.getInt(TOTAL_GENERATE_TRX_CNT) > 0) {
       INSTANCE.setTotalTrxCnt(config.getInt(TOTAL_GENERATE_TRX_CNT));
     } else {
-      log.error("totalGenerateTransaction is not valid.");
+      logger.error("totalGenerateTransaction is not valid.");
       throw new IllegalArgumentException("totalGenerateTransaction is not valid");
     }
 
@@ -141,19 +141,19 @@ public class TrxConfig {
         && config.getInt(SINGLE_TASK_TRX_COUNT) > 0) {
       INSTANCE.setSingleTaskCnt(config.getInt(SINGLE_TASK_TRX_COUNT));
     } else {
-      log.error("singleTaskTransactionCount is not valid");
+      logger.error("singleTaskTransactionCount is not valid");
       throw new IllegalArgumentException("singleTaskTransactionCount is not valid");
     }
 
     if (config.hasPath(TPS) && config.getInt(TPS) > 0) {
       INSTANCE.setTps(config.getInt(TPS));
     } else {
-      log.error("tps is not valid");
+      logger.error("tps is not valid");
       throw new IllegalArgumentException("tps is not valid");
     }
 
     if (!config.hasPath(GENERATE_TRX_TYPE)) {
-      log.error("transaction type is not valid");
+      logger.error("transaction type is not valid");
       throw new IllegalArgumentException("transaction type is not valid");
     }
     INSTANCE.setRangeMap(calculateRanges(config.getConfig(GENERATE_TRX_TYPE)));
@@ -175,7 +175,7 @@ public class TrxConfig {
     }
 
     if (!config.hasPath(PRIVATE_KEY) || config.getString(PRIVATE_KEY).length() != 64) {
-      log.error("private key is not valid.");
+      logger.error("private key is not valid.");
       throw new IllegalArgumentException("private key is not valid.");
     }
     INSTANCE.setPrivateKey(config.getString(PRIVATE_KEY));
@@ -183,7 +183,7 @@ public class TrxConfig {
     INSTANCE.setFromAddress(keyPair.toHexAddress());
 
     if (!config.hasPath(TO_ADDRESS)) {
-      log.error("toAddress is not valid.");
+      logger.error("toAddress is not valid.");
       throw new IllegalArgumentException("toAddress is not valid.");
     }
     INSTANCE.setToAddress(Hex.toHexString(Base58Check.base58ToBytes(config.getString(TO_ADDRESS))));
@@ -213,7 +213,7 @@ public class TrxConfig {
       INSTANCE.setRelay(true);
       if (!config.hasPath(RELAY_URL) || !config.hasPath(RELAY_START_NUMBER) || !config
           .hasPath(RELAY_END_NUMBER)) {
-        log.error("the relay parameters are not valid.");
+        logger.error("the relay parameters are not valid.");
         throw new IllegalArgumentException("the relay parameters are not valid.");
       }
 
@@ -224,7 +224,7 @@ public class TrxConfig {
 
       if (INSTANCE.relayStartNumber < 0 || INSTANCE.relayStartNumber > INSTANCE
           .relayEndNumber) {
-        log.error("the relay range is not valid.");
+        logger.error("the relay range is not valid.");
         throw new IllegalArgumentException("the relay range is not valid.");
       }
     }
@@ -256,7 +256,7 @@ public class TrxConfig {
       start += value;
     }
     if (start != 100) {
-      log.error("transaction type sum not equals 100.");
+      logger.error("transaction type sum not equals 100.");
       throw new IllegalArgumentException("transaction type sum not equals 100.");
     }
 

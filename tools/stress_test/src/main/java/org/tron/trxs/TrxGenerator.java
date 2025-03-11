@@ -105,7 +105,7 @@ public class TrxGenerator {
     long cnt = countDownLatch.getCount();
     if (cnt % 1000 == 0) {
       fos.flush();
-      log.info(
+      logger.info(
           String.format("generate trx task: %d/%d, task remain: %d, task pending size: %d",
               index + 1, totalTask, countDownLatch.getCount(), transactions.size()));
     }
@@ -134,7 +134,7 @@ public class TrxGenerator {
                 try {
                   Optional.ofNullable(generateTransaction()).ifPresent(transactions::add);
                 } catch (Exception e) {
-                  log.error("failed to generate the transaction.");
+                  logger.error("failed to generate the transaction.");
                   e.printStackTrace();
                   System.exit(1);
                 }

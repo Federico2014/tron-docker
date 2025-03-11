@@ -7,15 +7,15 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import lombok.extern.slf4j.Slf4j;
-import org.tron.trident.core.ApiWrapper;
+import org.tron.core.net.TronNetService;
+import org.tron.core.net.message.adv.TransactionMessage;
+import org.tron.protos.Protocol.Transaction;
 import org.tron.trident.core.utils.Sha256Hash;
-import org.tron.trident.proto.Chain.Transaction;
 
 @Slf4j(topic = "broadcastRelay")
 public class BroadcastRelay {
@@ -23,7 +23,7 @@ public class BroadcastRelay {
   private volatile boolean isFinishSend = false;
   private final ConcurrentLinkedQueue<Transaction> transactionIDs = new ConcurrentLinkedQueue<>();
 
-  private final List<ApiWrapper> apiWrapper;
+  private final TronNetService tronNetService;
   private final String output = "stress-test-output";
 
   private final ExecutorService saveTransactionIDPool = Executors
@@ -31,8 +31,8 @@ public class BroadcastRelay {
 
   private final Random random = new Random(System.currentTimeMillis());
 
-  public BroadcastRelay(List<ApiWrapper> apiWrapper) {
-    this.apiWrapper = apiWrapper;
+  public BroadcastRelay(TronNetService tronNetService) {
+    this.tronNetService = tronNetService;
   }
 
   private void processTransactionID(int count, BufferedWriter bufferedWriter)
@@ -49,7 +49,7 @@ public class BroadcastRelay {
       bufferedWriter.newLine();
       if (count % 1000 == 0) {
         bufferedWriter.flush();
-        log.info("transaction id size: {}", transactionIDs.size());
+        logger.info("transaction id size: {}", transactionIDs.size());
       }
       transactionIDs.poll();
     }
@@ -74,9 +74,8 @@ public class BroadcastRelay {
       });
     }
 
-    int apiSize = apiWrapper.size();
     long startTime = System.currentTimeMillis();
-    log.info("Start to process relay transaction broadcast task");
+    logger.info("Start to process relay transaction broadcast task");
     try (FileInputStream fis = new FileInputStream(output + File.separator + "relay-trx.csv")) {
       Transaction transaction;
       int cnt = 0;
@@ -93,7 +92,8 @@ public class BroadcastRelay {
           startTps = System.currentTimeMillis();
         } else {
           try {
-            apiWrapper.get(random.nextInt(apiSize)).broadcastTransaction(transaction);
+            TransactionMessage message = new TransactionMessage(transaction);
+            tronNetService.fastBroadcastTransaction(message);
           } catch (Exception e) {
             e.printStackTrace();
           }
@@ -115,7 +115,7 @@ public class BroadcastRelay {
     }
 
     long cost = System.currentTimeMillis() - startTime;
-    log.info("relay trx size: {}, cost: {}, tps: {}", trxCount, cost, 1.0 * trxCount / cost * 1000);
+    logger.info("relay trx size: {}, cost: {}, tps: {}", trxCount, cost, 1.0 * trxCount / cost * 1000);
     BroadcastGenerate.shutDown(saveTransactionIDPool);
   }
 }

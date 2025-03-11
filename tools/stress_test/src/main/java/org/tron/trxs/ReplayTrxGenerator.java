@@ -78,7 +78,7 @@ public class ReplayTrxGenerator {
     long count = countDownLatch.getCount();
     if (count % 1000 == 0) {
       fos.flush();
-      log.info(String.format("relay trx task, remain: %d, pending size: %d",
+      logger.info(String.format("relay trx task, remain: %d, pending size: %d",
           countDownLatch.getCount(), transactions.size()));
     }
 
@@ -86,7 +86,7 @@ public class ReplayTrxGenerator {
   }
 
   public void start() {
-    log.info(
+    logger.info(
         String.format("extract the transaction from block: %s to block: %s.", startNum, endNum));
 
     BlockListExtention blockList = null;
@@ -99,7 +99,7 @@ public class ReplayTrxGenerator {
       try {
         blockList = apiWrapper.getBlockByLimitNext(i, stepEndNumber);
       } catch (IllegalException e) {
-        log.error("failed to get the blocks.");
+        logger.error("failed to get the blocks.");
         e.printStackTrace();
         System.exit(1);
       }
@@ -117,11 +117,11 @@ public class ReplayTrxGenerator {
           }
         }
       }
-      log.info(String
+      logger.info(String
           .format("extract the transactions from block: %d to block: %d.", i, stepEndNumber));
     }
 
-    log.info("total relay transactions cnt: " + transactionsOfReplay.size());
+    logger.info("total relay transactions cnt: " + transactionsOfReplay.size());
     this.count = transactionsOfReplay.size();
 
     savePool.submit(() -> {

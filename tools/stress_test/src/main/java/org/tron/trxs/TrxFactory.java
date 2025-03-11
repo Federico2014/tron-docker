@@ -95,7 +95,7 @@ public class TrxFactory {
         try {
           update();
         } catch (Exception e) {
-          log.error("failed to update the transaction reference");
+          logger.error("failed to update the transaction reference");
           e.printStackTrace();
           System.exit(1);
         }
@@ -104,13 +104,13 @@ public class TrxFactory {
   }
 
   private void update() {
-    log.info("begin to update the transaction reference");
+    logger.info("begin to update the transaction reference");
     time.set(Math.max(System.currentTimeMillis() + validPeriod, time.get()));
     Block block = null;
     try {
       block = apiWrapper.getNowBlock();
     } catch (IllegalException e) {
-      log.error("failed to get the block");
+      logger.error("failed to get the block");
       e.printStackTrace();
       System.exit(1);
     }
@@ -123,7 +123,7 @@ public class TrxFactory {
     long expiration = time.incrementAndGet();
     INSTANCE.apiWrapper.setReferHeadBlockId(blockId);
     INSTANCE.apiWrapper.setExpireTimeStamp(expiration);
-    log.info("finish updating the transaction reference");
+    logger.info("finish updating the transaction reference");
   }
 
   public void close() {

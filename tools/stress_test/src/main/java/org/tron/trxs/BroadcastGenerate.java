@@ -5,15 +5,15 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import lombok.extern.slf4j.Slf4j;
-import org.tron.trident.core.ApiWrapper;
+import org.tron.core.net.TronNetService;
+import org.tron.core.net.message.adv.TransactionMessage;
+import org.tron.protos.Protocol.Transaction;
 import org.tron.trident.core.utils.Sha256Hash;
-import org.tron.trident.proto.Chain.Transaction;
 
 @Slf4j(topic = "broadcastGenerate")
 public class BroadcastGenerate {
@@ -24,16 +24,16 @@ public class BroadcastGenerate {
   private volatile boolean isFinishSend = false;
   private ConcurrentLinkedQueue<Transaction> transactionIDs = new ConcurrentLinkedQueue<>();
 
-  private List<ApiWrapper> apiWrapper;
+  private TronNetService tronNetService;
 
   private static ExecutorService saveTransactionIDPool = Executors
       .newFixedThreadPool(1, r -> new Thread(r, "save-gen-trx-id"));
 
   private final Random random = new Random(System.currentTimeMillis());
 
-  public BroadcastGenerate(TrxConfig config, List<ApiWrapper> apiWrapper) {
+  public BroadcastGenerate(TrxConfig config, TronNetService tronNetService) {
     this.dispatchCount = config.getTotalTrxCnt() / config.getSingleTaskCnt();
-    this.apiWrapper = apiWrapper;
+    this.tronNetService = tronNetService;
   }
 
   private void processTransactionID(int count, BufferedWriter bufferedWriter)
@@ -51,7 +51,7 @@ public class BroadcastGenerate {
       bufferedWriter.newLine();
       if (count % 10000 == 0) {
         bufferedWriter.flush();
-        log.info("transaction id size: {}", transactionIDs.size());
+        logger.info("transaction id size: {}", transactionIDs.size());
       }
       transactionIDs.poll();
     }
@@ -63,7 +63,6 @@ public class BroadcastGenerate {
     int totalTask =
         TrxConfig.getInstance().getTotalTrxCnt() % TrxConfig.getInstance().getSingleTaskCnt() == 0
             ? dispatchCount : dispatchCount + 1;
-    int apiSize = apiWrapper.size();
     long startTime = System.currentTimeMillis();
     for (int index = 0; index < totalTask; index++) {
       isFinishSend = false;
@@ -85,7 +84,7 @@ public class BroadcastGenerate {
         });
       }
 
-      log.info("Start to process broadcast generate trx task {}/{}", index + 1, totalTask);
+      logger.info("Start to process broadcast generate trx task {}/{}", index + 1, totalTask);
       Transaction transaction;
       int cnt = 0;
       try (FileInputStream fis = new FileInputStream(
@@ -98,17 +97,18 @@ public class BroadcastGenerate {
           if (cnt > TrxConfig.getInstance().getTps()) {
             endTps = System.currentTimeMillis();
             if (endTps - startTps <= 1000) {
-              log.info("real-time broadcast task {}/{} tps has reached: {}", index + 1, totalTask,
+              logger.info("real-time broadcast task {}/{} tps has reached: {}", index + 1, totalTask,
                   TrxConfig.getInstance().getTps());
               Thread.sleep(1000 - (endTps - startTps));
             } else {
               currentTps = cnt * 1000.0f / (endTps - startTps) ;
-              log.info("real-time broadcast task {}/{} tps is {}", index + 1, totalTask, currentTps);
+              logger.info("real-time broadcast task {}/{} tps is {}", index + 1, totalTask, currentTps);
             }
             cnt = 0;
             startTps = System.currentTimeMillis();
           } else {
-            apiWrapper.get(random.nextInt(apiSize)).broadcastTransaction(transaction);
+            TransactionMessage message = new TransactionMessage(transaction);
+            tronNetService.fastBroadcastTransaction(message);
             if (saveTrxId) {
               transactionIDs.add(transaction);
             }
@@ -127,7 +127,7 @@ public class BroadcastGenerate {
     }
 
     long cost = System.currentTimeMillis() - startTime;
-    log.info("broadcast generate trx size: {}, cost: {}, tps: {}",
+    logger.info("broadcast generate trx size: {}, cost: {}, tps: {}",
         trxCount, cost, 1.0 * trxCount / cost * 1000);
     shutDown(saveTransactionIDPool);
   }

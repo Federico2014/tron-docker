@@ -57,7 +57,7 @@ public class StatisticTps implements Callable<Integer> {
     }
 
     if (startBlock <0 || startBlock >= endBlock) {
-      log.error("invalid start Block: {}, end Block: {}", startBlock, endBlock);
+      logger.error("invalid start Block: {}, end Block: {}", startBlock, endBlock);
       spec.commandLine().getErr()
           .format("invalid start Block: %d, end Block: %d", startBlock, endBlock)
           .println();
@@ -69,7 +69,7 @@ public class StatisticTps implements Callable<Integer> {
     if (file.exists() && file.isFile()) {
       stressConfig = ConfigFactory.parseFile(Paths.get(config).toFile());
     } else {
-      log.error("Stress test config file [" + config + "] not exists!");
+      logger.error("Stress test config file [" + config + "] not exists!");
       spec.commandLine().getErr()
           .format("Stress test config file [%s] not exists!", config)
           .println();
@@ -79,7 +79,7 @@ public class StatisticTps implements Callable<Integer> {
     TrxConfig config = TrxConfig.getInstance();
 
     if (config.getBroadcastUrl().isEmpty()) {
-      log.error("no available broadcast url found.");
+      logger.error("no available broadcast url found.");
       spec.commandLine().getErr().println("no available broadcast url found.");
       System.exit(1);
     }

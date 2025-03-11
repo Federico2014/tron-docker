@@ -16,7 +16,7 @@ public class Statistic {
   private static ApiWrapper apiWrapper;
 
   public static void result(long startBlock, long endBlock, String output) throws IllegalException {
-    log.info("TPS static range: start block: {}, end block: {}", startBlock, endBlock);
+    logger.info("TPS static range: start block: {}, end block: {}", startBlock, endBlock);
 
     BlockExtention block;
     long startNumber = 0, endNumber = 0;
@@ -37,9 +37,9 @@ public class Statistic {
     }
 
     if (startNumber < endNumber) {
-      log.info("startNumber: {}, endNumber: {}", startNumber, endNumber);
+      logger.info("startNumber: {}, endNumber: {}", startNumber, endNumber);
     } else {
-      log.error("invalid startNumber: {}, endNumber: {}", startBlock, endNumber);
+      logger.error("invalid startNumber: {}, endNumber: {}", startBlock, endNumber);
       return;
     }
 
@@ -66,19 +66,19 @@ public class Statistic {
     BlockExtention endNumberBlock = apiWrapper.getBlockByNum(endNumber);
     long actualTime = endNumberBlock.getBlockHeader().getRawData().getTimestamp() - startNumberBlock
         .getBlockHeader().getRawData().getTimestamp();
-    log.info("expectedTime: {}, actual time: {}", expectedTime, actualTime);
+    logger.info("expectedTime: {}, actual time: {}", expectedTime, actualTime);
 
     float tps = (float) (1.0 * totalTrxCnt * 1000 / actualTime);
     float missBlockRate = (float) (1.0 * (actualTime - expectedTime) / actualTime);
 
-    log.info("Stress test report:");
-    log.info("statistic block range: startBlock: {}, endBlock: {}", startNumber, endNumber);
-    log.info("total transactions: {}", totalTrxCnt);
-    log.info("cost time: {} minutes", 1.0 * actualTime / (60 * 1000));
-    log.info("max block size: {}", maxTrxCntInOneBlock);
-    log.info("min block size: {}", minTrxCntInOneBlock);
-    log.info("tps: {}", tps);
-    log.info("miss block rate: {}", missBlockRate);
+    logger.info("Stress test report:");
+    logger.info("statistic block range: startBlock: {}, endBlock: {}", startNumber, endNumber);
+    logger.info("total transactions: {}", totalTrxCnt);
+    logger.info("cost time: {} minutes", 1.0 * actualTime / (60 * 1000));
+    logger.info("max block size: {}", maxTrxCntInOneBlock);
+    logger.info("min block size: {}", minTrxCntInOneBlock);
+    logger.info("tps: {}", tps);
+    logger.info("miss block rate: {}", missBlockRate);
 
     try (BufferedWriter writer = new BufferedWriter(new FileWriter(output))) {
       writer.write("Stress test report:");

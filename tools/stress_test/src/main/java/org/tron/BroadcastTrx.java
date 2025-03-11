@@ -2,13 +2,24 @@ package org.tron;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import io.grpc.ManagedChannel;
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
+import org.tron.api.WalletGrpc;
+import org.tron.common.application.Application;
+import org.tron.common.application.ApplicationFactory;
+import org.tron.common.application.TronApplicationContext;
+import org.tron.core.config.DefaultConfig;
+import org.tron.core.config.args.Args;
+import org.tron.core.net.TronNetService;
+import org.tron.core.services.RpcApiService;
+import org.tron.core.services.interfaceOnSolidity.RpcApiServiceOnSolidity;
 import org.tron.trident.core.ApiWrapper;
 import org.tron.trident.core.exceptions.IllegalException;
 import org.tron.trident.proto.Chain.Block;
@@ -37,10 +48,25 @@ public class BroadcastTrx implements Callable<Integer> {
           + " Default: ${DEFAULT-VALUE}")
   private String config;
 
+  @CommandLine.Option(names = {"-d", "--database-directory"},
+      defaultValue = "output-directory",
+      description = "java-tron database directory path. Default: ${DEFAULT-VALUE}")
+  private String database;
+
+  @CommandLine.Option(names = {"--fn-config"},
+      defaultValue = "config.conf",
+      description = "configure the parameters for broadcasting transactions."
+          + " Default: ${DEFAULT-VALUE}")
+  private String fnConfig;
+
   @CommandLine.Option(names = {"-h", "--help"})
   private boolean help;
 
   private List<ApiWrapper> apiWrapper = new ArrayList<>();
+
+  private TronApplicationContext context;
+  private Application app;
+  private TronNetService tronNetService;
 
   @Override
   public Integer call() throws IOException, InterruptedException, IllegalException {
@@ -54,7 +80,7 @@ public class BroadcastTrx implements Callable<Integer> {
     if (file.exists() && file.isFile()) {
       stressConfig = ConfigFactory.parseFile(Paths.get(config).toFile());
     } else {
-      log.error("Stress test config file [" + config + "] not exists!");
+      logger.error("Stress test config file [" + config + "] not exists!");
       spec.commandLine().getErr()
           .format("Stress test config file [%s] not exists!", config)
           .println();
@@ -64,7 +90,7 @@ public class BroadcastTrx implements Callable<Integer> {
     TrxConfig config = TrxConfig.getInstance();
 
     if (config.getBroadcastUrl().isEmpty()) {
-      log.error("no available broadcast url found.");
+      logger.error("no available broadcast url found.");
       spec.commandLine().getErr().println("no available broadcast url found.");
       System.exit(1);
     }
@@ -74,8 +100,19 @@ public class BroadcastTrx implements Callable<Integer> {
 
     Statistic.setApiWrapper(apiWrapper.get(0));
 
+    File fnConfigFile = Paths.get(fnConfig).toFile();
+    if (!fnConfigFile.exists() || fnConfigFile.isDirectory()) {
+      fnConfig = getConfig("config.conf");
+    }
+
+    Args.setParam(new String[]{"-d", database}, fnConfig);
+    context = new TronApplicationContext(DefaultConfig.class);
+    app = ApplicationFactory.create(context);
+    app.startup();
+    tronNetService = context.getBean(TronNetService.class);
+
     if (config.isBroadcastGenerate()) {
-      BroadcastGenerate broadcastGenerate = new BroadcastGenerate(config, apiWrapper);
+      BroadcastGenerate broadcastGenerate = new BroadcastGenerate(config, tronNetService);
       Block startBlock = apiWrapper.get(0).getNowBlock();
       broadcastGenerate.broadcastTransactions();
       Block endBlock = apiWrapper.get(0).getNowBlock();
@@ -85,7 +122,7 @@ public class BroadcastTrx implements Callable<Integer> {
     }
 
     if (config.isBroadcastRelay()) {
-      BroadcastRelay broadcastRelay = new BroadcastRelay(apiWrapper);
+      BroadcastRelay broadcastRelay = new BroadcastRelay(tronNetService);
       Block startBlock = apiWrapper.get(0).getNowBlock();
       broadcastRelay.broadcastTransactions();
       Block endBlock = apiWrapper.get(0).getNowBlock();
@@ -94,6 +131,12 @@ public class BroadcastTrx implements Callable<Integer> {
       Statistic.result(startNumber, endNumber, "stress-test-output/broadcast-relay-result");
     }
 
+    context.close();
     return 0;
+  }
+
+  private String getConfig(String config) {
+    URL path = BroadcastTrx.class.getClassLoader().getResource(config);
+    return path == null ? null : path.getPath();
   }
 }
