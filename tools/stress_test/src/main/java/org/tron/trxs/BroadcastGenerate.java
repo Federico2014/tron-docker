@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import lombok.extern.slf4j.Slf4j;
+import org.tron.common.overlay.message.Message;
 import org.tron.core.net.TronNetService;
 import org.tron.core.net.message.adv.TransactionMessage;
 import org.tron.protos.Protocol.Transaction;
@@ -107,8 +108,8 @@ public class BroadcastGenerate {
             cnt = 0;
             startTps = System.currentTimeMillis();
           } else {
-            TransactionMessage message = new TransactionMessage(transaction);
-            tronNetService.fastBroadcastTransaction(message);
+            Message message = new TransactionMessage(transaction);
+            tronNetService.broadcast(message);
             if (saveTrxId) {
               transactionIDs.add(transaction);
             }
