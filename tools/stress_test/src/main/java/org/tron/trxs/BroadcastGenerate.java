@@ -112,7 +112,7 @@ public class BroadcastGenerate {
             tronNetService.broadcast(message);
             if (trxCount % 1000 == 0) {
               logger.info("task {}/{} total broadcast tx num: {}", index + 1, totalTask, trxCount);
-              Thread.sleep(500);
+              Thread.sleep(100);
             }
             if (saveTrxId) {
               transactionIDs.add(transaction);

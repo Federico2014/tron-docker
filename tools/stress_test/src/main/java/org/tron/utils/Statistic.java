@@ -39,7 +39,7 @@ public class Statistic {
     if (startNumber < endNumber) {
       logger.info("startNumber: {}, endNumber: {}", startNumber, endNumber);
     } else {
-      logger.error("invalid startNumber: {}, endNumber: {}", startBlock, endNumber);
+      logger.error("invalid startNumber: {}, endNumber: {}", startNumber, endNumber);
       return;
     }
 

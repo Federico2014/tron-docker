@@ -3,6 +3,7 @@ package org.tron;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -10,7 +11,9 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.WalletGrpc;
 import org.tron.common.application.Application;
 import org.tron.common.application.ApplicationFactory;
@@ -20,12 +23,14 @@ import org.tron.core.config.args.Args;
 import org.tron.core.net.TronNetService;
 import org.tron.core.services.RpcApiService;
 import org.tron.core.services.interfaceOnSolidity.RpcApiServiceOnSolidity;
+import org.tron.protos.Protocol;
 import org.tron.trident.core.ApiWrapper;
 import org.tron.trident.core.exceptions.IllegalException;
 import org.tron.trident.proto.Chain.Block;
 import org.tron.trxs.BroadcastGenerate;
 import org.tron.trxs.BroadcastRelay;
 import org.tron.trxs.TrxConfig;
+import org.tron.utils.PublicMethod;
 import org.tron.utils.Statistic;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -68,6 +73,9 @@ public class BroadcastTrx implements Callable<Integer> {
   private Application app;
   private TronNetService tronNetService;
 
+  private WalletGrpc.WalletBlockingStub blockingStubFull = null;
+  private ManagedChannel channelFull;
+
   @Override
   public Integer call() throws IOException, InterruptedException, IllegalException {
     if (help) {
@@ -106,11 +114,33 @@ public class BroadcastTrx implements Callable<Integer> {
     }
 
     Args.setParam(new String[]{"-d", database}, fnConfig);
+    Args.getInstance().setRpcPort(PublicMethod.chooseRandomPort());
     context = new TronApplicationContext(DefaultConfig.class);
     app = ApplicationFactory.create(context);
+    app.addService(context.getBean(RpcApiService.class));
     app.startup();
-    tronNetService = context.getBean(TronNetService.class);
 
+    String fullNode = String.format("%s:%d", "127.0.0.1",
+        Args.getInstance().getRpcPort());
+    channelFull = ManagedChannelBuilder.forTarget(fullNode)
+        .usePlaintext()
+        .build();
+    blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
+
+    Protocol.Block localBlock = blockingStubFull.getNowBlock(EmptyMessage.newBuilder().build());
+    Block targetBlock = apiWrapper.get(0).getNowBlock();
+
+    while (localBlock.getBlockHeader().getRawData().getNumber() < targetBlock.getBlockHeader()
+        .getRawData().getNumber()) {
+      logger.info("current block num: " + localBlock.getBlockHeader().getRawData().getNumber());
+      logger.info("target block num: " + targetBlock.getBlockHeader().getRawData().getNumber());
+      Thread.sleep(1000);
+      localBlock = blockingStubFull.getNowBlock(EmptyMessage.newBuilder().build());
+      targetBlock = apiWrapper.get(0).getNowBlock();
+    }
+    logger.info("full node syncing finished");
+
+    tronNetService = context.getBean(TronNetService.class);
     if (config.isBroadcastGenerate()) {
       BroadcastGenerate broadcastGenerate = new BroadcastGenerate(config, tronNetService);
       Block startBlock = apiWrapper.get(0).getNowBlock();
@@ -131,12 +161,19 @@ public class BroadcastTrx implements Callable<Integer> {
       Statistic.result(startNumber, endNumber, "stress-test-output/broadcast-relay-result");
     }
 
-    context.close();
+    shutdown();
     return 0;
   }
 
   private String getConfig(String config) {
     URL path = BroadcastTrx.class.getClassLoader().getResource(config);
     return path == null ? null : path.getPath();
+  }
+
+  private void shutdown() throws InterruptedException {
+    if (channelFull != null) {
+      channelFull.shutdown().awaitTermination(5, TimeUnit.SECONDS);
+    }
+    context.close();
   }
 }

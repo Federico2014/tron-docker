@@ -95,6 +95,10 @@ public class BroadcastRelay {
           try {
             Message message = new TransactionMessage(transaction);
             tronNetService.broadcast(message);
+            if (trxCount % 1000 == 0) {
+              logger.info("total broadcast tx num: {}", trxCount);
+              Thread.sleep(100);
+            }
           } catch (Exception e) {
             e.printStackTrace();
           }
