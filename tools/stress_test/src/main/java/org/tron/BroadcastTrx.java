@@ -102,7 +102,11 @@ public class BroadcastTrx implements Callable<Integer> {
 
     File fnConfigFile = Paths.get(fnConfig).toFile();
     if (!fnConfigFile.exists() || fnConfigFile.isDirectory()) {
-      fnConfig = getConfig("config.conf");
+      logger.error("Full node config file [" + fnConfig + "] not exists!");
+      spec.commandLine().getErr()
+          .format("Full node config file [%s] not exists!", fnConfig)
+          .println();
+      System.exit(1);
     }
 
     Args.setParam(new String[]{"-d", database}, fnConfig);
