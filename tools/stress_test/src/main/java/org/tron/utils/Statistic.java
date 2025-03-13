@@ -15,6 +15,9 @@ public class Statistic {
   @Setter
   private static ApiWrapper apiWrapper;
 
+  @Setter
+  private static int broadcastLimit;
+
   public static void result(long startBlock, long endBlock, String output) throws IllegalException {
     logger.info("TPS static range: start block: {}, end block: {}", startBlock, endBlock);
 
@@ -44,7 +47,7 @@ public class Statistic {
     }
 
     int maxTrxCntInOneBlock = 0;
-    int minTrxCntInOneBlock = 0;
+    int minTrxCntInOneBlock = 1000000;
     int trxCnt = 0;
     int totalTrxCnt = 0;
 
@@ -72,6 +75,7 @@ public class Statistic {
     float missBlockRate = (float) (1.0 * (actualTime - expectedTime) / actualTime);
 
     logger.info("Stress test report:");
+    logger.info("broadcast tps limit: {}", broadcastLimit);
     logger.info("statistic block range: startBlock: {}, endBlock: {}", startNumber, endNumber);
     logger.info("total transactions: {}", totalTrxCnt);
     logger.info("cost time: {} minutes", 1.0 * actualTime / (60 * 1000));
@@ -82,6 +86,8 @@ public class Statistic {
 
     try (BufferedWriter writer = new BufferedWriter(new FileWriter(output))) {
       writer.write("Stress test report:");
+      writer.newLine();
+      writer.write(String.format("broadcast tps limit: %d", broadcastLimit));
       writer.newLine();
       writer.write(String
           .format("statistic block range: startBlock: %d, endBlock: %d", startNumber, endNumber));

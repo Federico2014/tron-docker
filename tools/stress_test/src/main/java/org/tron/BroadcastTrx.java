@@ -106,6 +106,7 @@ public class BroadcastTrx implements Callable<Integer> {
         Args.getInstance().getRpcPort());
     apiWrapper = new ApiWrapper(url, url, config.getPrivateKey());
     Statistic.setApiWrapper(apiWrapper);
+    Statistic.setBroadcastLimit(config.getTps());
 
     tronNetDelegate = context.getBean(TronNetDelegate.class);
     while (getBroadCastPeerCount() <= 0) {
