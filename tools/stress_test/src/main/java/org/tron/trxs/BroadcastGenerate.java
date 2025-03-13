@@ -108,11 +108,13 @@ public class BroadcastGenerate {
             cnt = 0;
             startTps = System.currentTimeMillis();
           } else {
-            Message message = new TransactionMessage(transaction);
-            tronNetService.broadcast(message);
-            if (trxCount % 1000 == 0) {
-              logger.info("task {}/{} total broadcast tx num: {}", index + 1, totalTask, trxCount);
-              Thread.sleep(100);
+            TransactionMessage message = new TransactionMessage(transaction);
+            int peerCnt = tronNetService.fastBroadcastTransaction(message);
+            while (peerCnt <= 0) {
+              logger.warn("broadcast task {}/{} has no available peers to broadcast, please wait",
+                  index + 1, totalTask);
+              Thread.sleep(1000);
+              peerCnt = tronNetService.fastBroadcastTransaction(message);
             }
             if (saveTrxId) {
               transactionIDs.add(transaction);

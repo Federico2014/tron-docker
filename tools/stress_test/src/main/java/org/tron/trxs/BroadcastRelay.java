@@ -93,11 +93,15 @@ public class BroadcastRelay {
           startTps = System.currentTimeMillis();
         } else {
           try {
-            Message message = new TransactionMessage(transaction);
-            tronNetService.broadcast(message);
+            TransactionMessage message = new TransactionMessage(transaction);
+            int peerCnt = tronNetService.fastBroadcastTransaction(message);
+            while (peerCnt <= 0) {
+              logger.warn("broadcast relay task has no available peers to broadcast, please wait");
+              Thread.sleep(1000);
+              peerCnt = tronNetService.fastBroadcastTransaction(message);
+            }
             if (trxCount % 1000 == 0) {
               logger.info("total broadcast tx num: {}", trxCount);
-              Thread.sleep(100);
             }
           } catch (Exception e) {
             e.printStackTrace();

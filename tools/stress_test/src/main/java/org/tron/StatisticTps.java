@@ -78,15 +78,14 @@ public class StatisticTps implements Callable<Integer> {
     TrxConfig.initParams(stressConfig);
     TrxConfig config = TrxConfig.getInstance();
 
-    if (config.getBroadcastUrl().isEmpty()) {
+    if (config.getUpdateRefUrl().isEmpty()) {
       logger.error("no available broadcast url found.");
       spec.commandLine().getErr().println("no available broadcast url found.");
       System.exit(1);
     }
 
-
     Statistic.setApiWrapper(
-        new ApiWrapper(config.getBroadcastUrl().get(0), config.getBroadcastUrl().get(0),
+        new ApiWrapper(config.getUpdateRefUrl(), config.getUpdateRefUrl(),
             config.getPrivateKey()));
     Statistic.result(startBlock, endBlock, output);
     return 0;

@@ -3,9 +3,7 @@ package org.tron.trxs;
 import com.google.common.collect.Range;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -107,10 +105,6 @@ public class TrxConfig {
   @Setter
   @Getter
   private long relayEndNumber = 0;
-
-  @Setter
-  @Getter
-  private List<String> broadcastUrl = new ArrayList<>();
 
   @Setter
   @Getter
@@ -227,10 +221,6 @@ public class TrxConfig {
         logger.error("the relay range is not valid.");
         throw new IllegalArgumentException("the relay range is not valid.");
       }
-    }
-
-    if (config.hasPath(BROADCAST_URL)) {
-      INSTANCE.setBroadcastUrl(config.getStringList(BROADCAST_URL));
     }
 
     if (config.hasPath(BROADCAST_GENERATE)) {
