@@ -21,7 +21,7 @@ import org.tron.trident.proto.Response.BlockListExtention;
 import org.tron.trident.proto.Response.TransactionExtention;
 
 @Slf4j(topic = "relayTrxGenerator")
-public class ReplayTrxGenerator {
+public class ReplayTxGenerator {
 
   private long startNum;
   private long endNum;
@@ -39,27 +39,27 @@ public class ReplayTrxGenerator {
   FileOutputStream fos = null;
   CountDownLatch countDownLatch = null;
   private ExecutorService savePool = Executors.newFixedThreadPool(1,
-      r -> new Thread(r, "save-trx"));
+      r -> new Thread(r, "save-tx"));
 
   private ExecutorService generatePool = Executors.newFixedThreadPool(2,
-      r -> new Thread(r, "relay-trx"));
+      r -> new Thread(r, "relay-tx"));
 
-  public ReplayTrxGenerator(String outputFile) throws IllegalException {
+  public ReplayTxGenerator(String outputFile) {
     File dir = new File(outputDir);
     if (!dir.exists()) {
       dir.mkdirs();
     }
 
     this.outputFile = outputDir + File.separator + outputFile;
-    this.startNum = TrxConfig.getInstance().getRelayStartNumber();
-    this.endNum = TrxConfig.getInstance().getRelayEndNumber();
-    this.apiWrapper = new ApiWrapper(TrxConfig.getInstance().getRelayUrl(),
-        TrxConfig.getInstance().getRelayUrl(),
-        TrxConfig.getInstance().getPrivateKey());
+    this.startNum = TxConfig.getInstance().getRelayStartNumber();
+    this.endNum = TxConfig.getInstance().getRelayEndNumber();
+    this.apiWrapper = new ApiWrapper(TxConfig.getInstance().getRelayUrl(),
+        TxConfig.getInstance().getRelayUrl(),
+        TxConfig.getInstance().getPrivateKey());
   }
 
-  public ReplayTrxGenerator() throws IllegalException {
-    this("relay-trx.csv");
+  public ReplayTxGenerator() {
+    this("relay-tx.csv");
   }
 
   private void consumerGenerateTransaction() throws IOException {
@@ -78,7 +78,7 @@ public class ReplayTrxGenerator {
     long count = countDownLatch.getCount();
     if (count % 1000 == 0) {
       fos.flush();
-      logger.info(String.format("relay trx task, remain: %d, pending size: %d",
+      logger.info(String.format("relay tx task, remain: %d, pending size: %d",
           countDownLatch.getCount(), transactions.size()));
     }
 
@@ -87,7 +87,7 @@ public class ReplayTrxGenerator {
 
   public void start() {
     logger.info(
-        String.format("extract the transaction from block: %s to block: %s.", startNum, endNum));
+        String.format("extract the tx from block: %s to block: %s.", startNum, endNum));
 
     BlockListExtention blockList = null;
     Optional<List<BlockExtention>> result;
@@ -151,7 +151,7 @@ public class ReplayTrxGenerator {
     } catch (InterruptedException | IOException e) {
       e.printStackTrace();
     } finally {
-      TrxGenerator.shutDown(generatePool, savePool);
+      TxGenerator.shutDown(generatePool, savePool);
     }
   }
 }

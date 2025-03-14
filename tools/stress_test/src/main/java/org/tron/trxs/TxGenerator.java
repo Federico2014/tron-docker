@@ -3,23 +3,18 @@ package org.tron.trxs;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.LongStream;
 import lombok.extern.slf4j.Slf4j;
-import org.bouncycastle.util.encoders.Hex;
-import org.tron.GenerateTrx;
-import org.tron.trident.crypto.Hash;
 import org.tron.trident.proto.Chain.Transaction;
 
 @Slf4j(topic = "trxGenerator")
-public class TrxGenerator {
+public class TxGenerator {
 
   private int count;
   private String outputFile;
@@ -34,14 +29,14 @@ public class TrxGenerator {
   CountDownLatch countDownLatch = null;
   private final Random random = new Random(System.currentTimeMillis());
 
-  private final TrxConfig config = TrxConfig.getInstance();
+  private final TxConfig config = TxConfig.getInstance();
 
   private final ExecutorService savePool = Executors.newFixedThreadPool(1,
-      r -> new Thread(r, "save-trx"));
+      r -> new Thread(r, "save-tx"));
   private final ExecutorService generatePool = Executors.newFixedThreadPool(1,
-      r -> new Thread(r, "generate-trx"));
+      r -> new Thread(r, "generate-tx"));
 
-  public TrxGenerator(String outputFile, int count, int index) {
+  public TxGenerator(String outputFile, int count, int index) {
     File dir = new File(outputDir);
     if (!dir.exists()) {
       dir.mkdirs();
@@ -52,34 +47,34 @@ public class TrxGenerator {
     this.index = index;
   }
 
-  public TrxGenerator(int count) {
-    this("generate-trx.csv", count, 0);
+  public TxGenerator(int count) {
+    this("generate-tx.csv", count, 0);
   }
 
-  public TrxGenerator(int count, int index) {
-    this("generate-trx" + index + ".csv", count, index);
+  public TxGenerator(int count, int index) {
+    this("generate-tx" + index + ".csv", count, index);
   }
 
-  public TrxGenerator setTotalTask(int totalTask) {
+  public TxGenerator setTotalTask(int totalTask) {
     this.totalTask = totalTask;
     return this;
   }
 
   private Transaction generateTransaction() throws Exception {
     int randomInt = random.nextInt(100);
-    TrxType type = config.findTransactionType(randomInt);
+    TxType type = config.findTransactionType(randomInt);
     Transaction transaction;
-    long expiration = TrxFactory.getInstance().getTime().incrementAndGet();
-    TrxFactory.getInstance().getApiWrapper().setExpireTimeStamp(expiration);
+    long expiration = TxFactory.getInstance().getTime().incrementAndGet();
+    TxFactory.getInstance().getApiWrapper().setExpireTimeStamp(expiration);
     switch (type) {
       case TRANSFER:
-        transaction = TrxFactory.getInstance().getTransferTrx();
+        transaction = TxFactory.getInstance().getTransferTx();
         break;
       case TRANSFER_TRC10:
-        transaction = TrxFactory.getInstance().getTransferTrc10();
+        transaction = TxFactory.getInstance().getTransferTrc10();
         break;
       case TRANSFER_TRC20:
-        transaction = TrxFactory.getInstance().getTransferTrc20();
+        transaction = TxFactory.getInstance().getTransferTrc20();
         break;
       default:
         return null;

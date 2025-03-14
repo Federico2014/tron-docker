@@ -10,7 +10,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import lombok.extern.slf4j.Slf4j;
-import org.tron.common.overlay.message.Message;
 import org.tron.core.net.TronNetService;
 import org.tron.core.net.message.adv.TransactionMessage;
 import org.tron.protos.Protocol.Transaction;
@@ -28,12 +27,12 @@ public class BroadcastGenerate {
   private TronNetService tronNetService;
 
   private static ExecutorService saveTransactionIDPool = Executors
-      .newFixedThreadPool(1, r -> new Thread(r, "save-gen-trx-id"));
+      .newFixedThreadPool(1, r -> new Thread(r, "save-gen-tx-id"));
 
   private final Random random = new Random(System.currentTimeMillis());
 
-  public BroadcastGenerate(TrxConfig config, TronNetService tronNetService) {
-    this.dispatchCount = config.getTotalTrxCnt() / config.getSingleTaskCnt();
+  public BroadcastGenerate(TxConfig config, TronNetService tronNetService) {
+    this.dispatchCount = config.getTotalTxCnt() / config.getSingleTaskCnt();
     this.tronNetService = tronNetService;
   }
 
@@ -52,7 +51,7 @@ public class BroadcastGenerate {
       bufferedWriter.newLine();
       if (count % 10000 == 0) {
         bufferedWriter.flush();
-        logger.info("transaction id size: {}", transactionIDs.size());
+        logger.info("tx id size: {}", transactionIDs.size());
       }
       transactionIDs.poll();
     }
@@ -60,9 +59,9 @@ public class BroadcastGenerate {
 
   public void broadcastTransactions() throws IOException, InterruptedException {
     long trxCount = 0;
-    boolean saveTrxId = TrxConfig.getInstance().isSaveTrxId();
+    boolean saveTrxId = TxConfig.getInstance().isSaveTrxId();
     int totalTask =
-        TrxConfig.getInstance().getTotalTrxCnt() % TrxConfig.getInstance().getSingleTaskCnt() == 0
+        TxConfig.getInstance().getTotalTxCnt() % TxConfig.getInstance().getSingleTaskCnt() == 0
             ? dispatchCount : dispatchCount + 1;
     long startTime = System.currentTimeMillis();
     for (int index = 0; index < totalTask; index++) {
@@ -73,7 +72,7 @@ public class BroadcastGenerate {
           int count = 0;
           try (
               FileWriter writer = new FileWriter(
-                  output + File.separator + "broadcast-trxID" + taskIndex + ".csv");
+                  output + File.separator + "broadcast-txID" + taskIndex + ".csv");
               BufferedWriter bufferedWriter = new BufferedWriter(writer)
           ) {
             processTransactionID(count, bufferedWriter);
@@ -89,17 +88,17 @@ public class BroadcastGenerate {
       Transaction transaction;
       int cnt = 0;
       try (FileInputStream fis = new FileInputStream(
-          output + File.separator + "generate-trx" + index + ".csv")) {
+          output + File.separator + "generate-tx" + index + ".csv")) {
         long startTps = System.currentTimeMillis();
         long endTps;
         float currentTps;
         while ((transaction = Transaction.parseDelimitedFrom(fis)) != null) {
           trxCount++;
-          if (cnt > TrxConfig.getInstance().getTps()) {
+          if (cnt > TxConfig.getInstance().getBroadcastTpsLimit()) {
             endTps = System.currentTimeMillis();
             if (endTps - startTps <= 1000) {
               logger.info("real-time broadcast task {}/{} tps has reached: {}", index + 1, totalTask,
-                  TrxConfig.getInstance().getTps());
+                  TxConfig.getInstance().getBroadcastTpsLimit());
               Thread.sleep(1000 - (endTps - startTps));
             } else {
               currentTps = cnt * 1000.0f / (endTps - startTps) ;
@@ -134,7 +133,7 @@ public class BroadcastGenerate {
     }
 
     long cost = System.currentTimeMillis() - startTime;
-    logger.info("broadcast generate trx size: {}, cost: {}, tps: {}",
+    logger.info("broadcast generate tx size: {}, cost: {}, tps: {}",
         trxCount, cost, 1.0 * trxCount / cost * 1000);
     shutDown(saveTransactionIDPool);
   }

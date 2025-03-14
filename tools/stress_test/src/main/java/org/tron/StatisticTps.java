@@ -8,7 +8,7 @@ import java.nio.file.Paths;
 import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.trident.core.ApiWrapper;
-import org.tron.trxs.TrxConfig;
+import org.tron.trxs.TxConfig;
 import org.tron.utils.Statistic;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -35,12 +35,7 @@ public class StatisticTps implements Callable<Integer> {
   @CommandLine.Option(names = {"-h", "--help"})
   private boolean help;
 
-  @Option(names = {"-s", "--start-block"},
-      description = "start block number for the tps statistic.")
   private long startBlock;
-
-  @Option(names = {"-e", "--end-block"},
-      description = "end block number for the tps statistic.")
   private long endBlock;
 
   @CommandLine.Option(names = {"-o", "--output"},
@@ -56,14 +51,6 @@ public class StatisticTps implements Callable<Integer> {
       return 0;
     }
 
-    if (startBlock <0 || startBlock >= endBlock) {
-      logger.error("invalid start Block: {}, end Block: {}", startBlock, endBlock);
-      spec.commandLine().getErr()
-          .format("invalid start Block: %d, end Block: %d", startBlock, endBlock)
-          .println();
-      System.exit(1);
-    }
-
     Config stressConfig = ConfigFactory.load();
     File file = Paths.get(config).toFile();
     if (file.exists() && file.isFile()) {
@@ -75,17 +62,27 @@ public class StatisticTps implements Callable<Integer> {
           .println();
       System.exit(1);
     }
-    TrxConfig.initParams(stressConfig);
-    TrxConfig config = TrxConfig.getInstance();
+    TxConfig.initParams(stressConfig);
+    TxConfig config = TxConfig.getInstance();
 
-    if (config.getUpdateRefUrl().isEmpty()) {
+    startBlock = config.getStatisticStartNumber();
+    endBlock = config.getStatisticEndNumber();
+    if (startBlock < 0 || startBlock >= endBlock) {
+      logger.error("invalid start Block: {}, end Block: {}", startBlock, endBlock);
+      spec.commandLine().getErr()
+          .format("invalid start Block: %d, end Block: %d", startBlock, endBlock)
+          .println();
+      System.exit(1);
+    }
+
+    if (config.getStatisticUrl().isEmpty()) {
       logger.error("no available broadcast url found.");
       spec.commandLine().getErr().println("no available broadcast url found.");
       System.exit(1);
     }
 
     Statistic.setApiWrapper(
-        new ApiWrapper(config.getUpdateRefUrl(), config.getUpdateRefUrl(),
+        new ApiWrapper(config.getStatisticUrl(), config.getStatisticUrl(),
             config.getPrivateKey()));
     Statistic.result(startBlock, endBlock, output);
     return 0;

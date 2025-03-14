@@ -7,10 +7,10 @@ import java.nio.file.Paths;
 import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.trident.core.exceptions.IllegalException;
-import org.tron.trxs.ReplayTrxGenerator;
-import org.tron.trxs.TrxConfig;
-import org.tron.trxs.TrxFactory;
-import org.tron.trxs.TrxGenerator;
+import org.tron.trxs.ReplayTxGenerator;
+import org.tron.trxs.TxConfig;
+import org.tron.trxs.TxFactory;
+import org.tron.trxs.TxGenerator;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
@@ -21,7 +21,7 @@ import picocli.CommandLine.Command;
     exitCodeList = {
         "0:Successful",
         "n:Internal error: exception occurred, please check logs/stress_test.log"})
-public class GenerateTrx implements Callable<Integer> {
+public class GenerateTx implements Callable<Integer> {
 
   @CommandLine.Spec
   public static CommandLine.Model.CommandSpec spec;
@@ -50,21 +50,21 @@ public class GenerateTrx implements Callable<Integer> {
       logger.error("stress test config file {} not exists!", config);
       System.exit(-1);
     }
-    TrxConfig.initParams(stressConfig);
-    TrxConfig config = TrxConfig.getInstance();
+    TxConfig.initParams(stressConfig);
+    TxConfig config = TxConfig.getInstance();
     logger.info("load the config file successfully!");
 
-    if (config.isGenerateTrx()) {
-      int dispatchCount = config.getTotalTrxCnt() / config.getSingleTaskCnt();
+    if (config.isGenerateTx()) {
+      int dispatchCount = config.getTotalTxCnt() / config.getSingleTaskCnt();
       int lastTaskCnt = config.getSingleTaskCnt();
-      if (config.getTotalTrxCnt() % config.getSingleTaskCnt() != 0) {
+      if (config.getTotalTxCnt() % config.getSingleTaskCnt() != 0) {
         dispatchCount = dispatchCount + 1;
-        lastTaskCnt = config.getTotalTrxCnt() % config.getSingleTaskCnt();
+        lastTaskCnt = config.getTotalTxCnt() % config.getSingleTaskCnt();
       }
       logger.info("start to generate the transactions");
-      TrxFactory.initInstance();
+      TxFactory.initInstance();
       for (int i = 0; i < dispatchCount; i++) {
-        new TrxGenerator(
+        new TxGenerator(
             i == (dispatchCount - 1) ? lastTaskCnt
                 : config.getSingleTaskCnt(), i).setTotalTask(dispatchCount).start();
       }
@@ -74,7 +74,7 @@ public class GenerateTrx implements Callable<Integer> {
 
     if (config.isRelay()) {
       logger.info("start to relay the transactions");
-      new ReplayTrxGenerator().start();
+      new ReplayTxGenerator().start();
       logger.info("finish relaying the transactions");
     }
 

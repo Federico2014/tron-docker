@@ -20,7 +20,7 @@ import org.tron.trident.core.exceptions.IllegalException;
 import org.tron.trident.proto.Chain.Block;
 import org.tron.trxs.BroadcastGenerate;
 import org.tron.trxs.BroadcastRelay;
-import org.tron.trxs.TrxConfig;
+import org.tron.trxs.TxConfig;
 import org.tron.utils.PublicMethod;
 import org.tron.utils.Statistic;
 import picocli.CommandLine;
@@ -33,7 +33,7 @@ import picocli.CommandLine.Command;
     exitCodeList = {
         "0:Successful",
         "n:Internal error: exception occurred, please check logs/stress_test.log"})
-public class BroadcastTrx implements Callable<Integer> {
+public class BroadcastTx implements Callable<Integer> {
 
   @CommandLine.Spec
   public static CommandLine.Model.CommandSpec spec;
@@ -83,8 +83,8 @@ public class BroadcastTrx implements Callable<Integer> {
           .println();
       System.exit(1);
     }
-    TrxConfig.initParams(stressConfig);
-    TrxConfig config = TrxConfig.getInstance();
+    TxConfig.initParams(stressConfig);
+    TxConfig config = TxConfig.getInstance();
 
     File fnConfigFile = Paths.get(fnConfig).toFile();
     if (!fnConfigFile.exists() || fnConfigFile.isDirectory()) {
@@ -96,7 +96,15 @@ public class BroadcastTrx implements Callable<Integer> {
     }
 
     Args.setParam(new String[]{"-d", database}, fnConfig);
-    Args.getInstance().setRpcPort(PublicMethod.chooseRandomPort());
+    int rpcPort = PublicMethod.chooseRandomPort();
+    Args.getInstance().setRpcPort(rpcPort);
+    int nodeListenPort = PublicMethod.chooseRandomPort();
+    while (nodeListenPort == rpcPort) {
+      nodeListenPort = PublicMethod.chooseRandomPort();
+    }
+    Args.getInstance().setNodeListenPort(nodeListenPort);
+    logger.info("rpc.port: {}, node.listen.port {}", rpcPort, nodeListenPort);
+
     context = new TronApplicationContext(DefaultConfig.class);
     app = ApplicationFactory.create(context);
     app.addService(context.getBean(RpcApiService.class));
@@ -106,7 +114,7 @@ public class BroadcastTrx implements Callable<Integer> {
         Args.getInstance().getRpcPort());
     apiWrapper = new ApiWrapper(url, url, config.getPrivateKey());
     Statistic.setApiWrapper(apiWrapper);
-    Statistic.setBroadcastLimit(config.getTps());
+    Statistic.setBroadcastTpsLimit(config.getBroadcastTpsLimit());
 
     tronNetDelegate = context.getBean(TronNetDelegate.class);
     while (getBroadCastPeerCount() <= 0) {

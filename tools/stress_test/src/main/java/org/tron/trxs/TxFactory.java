@@ -2,7 +2,13 @@ package org.tron.trxs;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -24,13 +30,17 @@ import org.tron.trident.proto.Chain.Transaction;
 import org.tron.trident.proto.Chain.Transaction.Contract.ContractType;
 import org.tron.trident.proto.Contract;
 import org.tron.trident.proto.Response.TransactionExtention;
+import org.tron.trident.utils.Base58Check;
 
 @Slf4j(topic = "trxFactory")
-public class TrxFactory {
+public class TxFactory {
 
-  private static final TrxFactory INSTANCE = new TrxFactory();
+  private static final TxFactory INSTANCE = new TxFactory();
 
   private static final long feeLimit = 2000000000L;
+  private static final long transferAmount = 1L;
+  private static final long transferTrc10Amount = 1L;
+  private static final long transferTrc20Amount = 1L;
 
   @Setter
   @Getter
@@ -52,9 +62,16 @@ public class TrxFactory {
   @Getter
   private KeyPair keyPair;
 
+  @Getter
+  private List<String> addressList = new ArrayList<>();
+
+  private int addressListSize;
+  private Random random = new Random();
+
+
   @Setter
   @Getter
-  private TrxConfig config;
+  private TxConfig config;
 
   private ScheduledExecutorService updateExecutor = Executors
       .newSingleThreadScheduledExecutor();
@@ -63,44 +80,32 @@ public class TrxFactory {
   private ApiWrapper apiWrapper;
 
   private String methodSign = "transfer(address,uint256)";
-  private String contractData;
 
   public static void initInstance() {
-    INSTANCE.config = TrxConfig.getInstance();
+    INSTANCE.config = TxConfig.getInstance();
     INSTANCE.keyPair = new KeyPair(INSTANCE.config.getPrivateKey());
+    INSTANCE.loadAddressList(INSTANCE.config.getAddressListFile());
+    INSTANCE.addressListSize = INSTANCE.addressList.size();
 
     long expirationTime = System.currentTimeMillis() + INSTANCE.validPeriod;
     INSTANCE.time.set(expirationTime);
-    byte[] refBlockNumber = ByteArray.fromLong(TrxConfig.getInstance().getRefBlockNum());
-    INSTANCE.refBlockNum = ByteString.copyFrom(ByteArray.subArray(refBlockNumber, 6, 8));
-    byte[] refBlockHash = ByteArray.fromHexString(TrxConfig.getInstance().getRefBlockHash());
-    INSTANCE.refBlockHash = ByteString.copyFrom(ByteArray.subArray(refBlockHash, 8, 16));
-
     INSTANCE.apiWrapper = new ApiWrapper(INSTANCE.config.getUpdateRefUrl(),
         INSTANCE.config.getUpdateRefUrl(), INSTANCE.config.getPrivateKey());
-    BlockId blockId = new BlockId(refBlockHash, TrxConfig.getInstance().getRefBlockNum());
-    INSTANCE.apiWrapper.enableLocalCreate(blockId, expirationTime);
-
-    INSTANCE.contractData = createContractData(INSTANCE.methodSign, INSTANCE.config.getToAddress(),
-        INSTANCE.config.getTransferTrc20Amount());
-    if (INSTANCE.config.isUpdateRef()) {
-      INSTANCE.update();
-      INSTANCE.updateTrxReference();
-    }
+    INSTANCE.update();
+    INSTANCE.updateTrxReference();
   }
 
   public void updateTrxReference() {
-    if (config.isUpdateRef()) {
-      updateExecutor.scheduleWithFixedDelay(() -> {
-        try {
-          update();
-        } catch (Exception e) {
-          logger.error("failed to update the transaction reference");
-          e.printStackTrace();
-          System.exit(1);
-        }
-      }, 60, 60, TimeUnit.SECONDS);
-    }
+    updateExecutor.scheduleWithFixedDelay(() -> {
+      try {
+        update();
+      } catch (Exception e) {
+        logger.error("failed to update the transaction reference");
+        e.printStackTrace();
+        System.exit(1);
+      }
+    }, 60, 60, TimeUnit.SECONDS);
+
   }
 
   private void update() {
@@ -121,40 +126,58 @@ public class TrxFactory {
 
     BlockId blockId = new BlockId(blockHash, blockNum);
     long expiration = time.incrementAndGet();
-    INSTANCE.apiWrapper.setReferHeadBlockId(blockId);
-    INSTANCE.apiWrapper.setExpireTimeStamp(expiration);
+    apiWrapper.enableLocalCreate(blockId, expiration);
+
     logger.info("finish updating the transaction reference");
+  }
+
+  public void loadAddressList(String filePath) {
+    try (BufferedReader reader = new BufferedReader(
+        new FileReader(filePath))) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        addressList.add(line);
+      }
+      logger.info("load address success, list size: {}", addressList.size());
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
   }
 
   public void close() {
     updateExecutor.shutdown();
   }
 
-  public Transaction getTransferTrx() throws IllegalException {
+  public Transaction getTransferTx() throws IllegalException {
     TransactionExtention transaction = apiWrapper
-        .transfer(config.getFromAddress(), config.getToAddress(), config.getTransferAmount());
+        .transfer(config.getFromAddress(), addressList.get(random.nextInt(addressListSize)),
+            transferAmount);
     return apiWrapper.signTransaction(transaction);
   }
 
   public Transaction getTransferTrc10() throws IllegalException {
     TransactionExtention transaction = apiWrapper
-        .transferTrc10(config.getFromAddress(), config.getToAddress(), config.getTrc10Id(),
-            config.getTransferTrc10Amount());
+        .transferTrc10(config.getFromAddress(), addressList.get(random.nextInt(addressListSize)),
+            config.getTrc10Id(),
+            transferTrc10Amount);
     return apiWrapper.signTransaction(transaction);
   }
 
   public Transaction getTransferTrc20() throws Exception {
+    byte[] toAddress = Base58Check.base58ToBytes(addressList.get(random.nextInt(addressListSize)));
+    String contractData = createContractData(INSTANCE.methodSign, toAddress, transferTrc20Amount);
     TransactionExtention transaction = apiWrapper
         .triggerContract(config.getFromAddress(), config.getTrc20ContractAddress(), contractData,
             0L, 0L, null, feeLimit);
     return apiWrapper.signTransaction(transaction);
   }
 
-  public Transaction createTransferTrx() {
+  public Transaction createTransferTx() {
+    byte[] toAddress = Base58Check.base58ToBytes(addressList.get(random.nextInt(addressListSize)));
     Contract.TransferContract contract = Contract.TransferContract.newBuilder()
         .setOwnerAddress(ByteString.fromHex(config.getFromAddress()))
-        .setToAddress(ByteString.fromHex(config.getToAddress()))
-        .setAmount(config.getTransferAmount())
+        .setToAddress(ByteString.copyFrom(toAddress))
+        .setAmount(transferAmount)
         .build();
 
     Transaction transaction = createTransaction(contract, ContractType.TransferContract);
@@ -163,11 +186,12 @@ public class TrxFactory {
   }
 
   public Transaction createTransferTrc10() {
+    byte[] toAddress = Base58Check.base58ToBytes(addressList.get(random.nextInt(addressListSize)));
     Contract.TransferAssetContract contract = Contract.TransferAssetContract.newBuilder()
         .setAssetName(ByteString.copyFromUtf8(String.valueOf(config.getTrc10Id())))
         .setOwnerAddress(ByteString.fromHex(config.getFromAddress()))
-        .setToAddress(ByteString.fromHex(config.getToAddress()))
-        .setAmount(config.getTransferTrc10Amount())
+        .setToAddress(ByteString.copyFrom(toAddress))
+        .setAmount(transferTrc20Amount)
         .build();
 
     Transaction transaction = createTransaction(contract, ContractType.TransferAssetContract);
@@ -176,6 +200,8 @@ public class TrxFactory {
   }
 
   public Transaction createTransferTrc20() {
+    byte[] toAddress = Base58Check.base58ToBytes(addressList.get(random.nextInt(addressListSize)));
+    String contractData = createContractData(INSTANCE.methodSign, toAddress, transferTrc20Amount);
     Contract.TriggerSmartContract contract = Contract.TriggerSmartContract.newBuilder()
         .setOwnerAddress(ByteString.fromHex(config.getFromAddress()))
         .setContractAddress(ByteString.fromHex(config.getTrc20ContractAddress()))
@@ -191,12 +217,12 @@ public class TrxFactory {
     return transaction;
   }
 
-  private static String createContractData(String methodSign, String receiver, long amount) {
+  private static String createContractData(String methodSign, byte[] receiver, long amount) {
     byte[] selector = new byte[4];
     System.arraycopy(Hash.sha3(methodSign.getBytes()), 0, selector, 0, 4);
 
     byte[] params = new byte[64];
-    System.arraycopy(Hex.decode(receiver), 1, params, 12, 20);
+    System.arraycopy(receiver, 1, params, 12, 20);
     System.arraycopy(ByteArray.fromLong(amount), 0, params, 56, 8);
     return Hex.toHexString(selector) + Hex.toHexString(params);
   }
@@ -252,7 +278,7 @@ public class TrxFactory {
     return transaction;
   }
 
-  public static TrxFactory getInstance() {
+  public static TxFactory getInstance() {
     return INSTANCE;
   }
 }

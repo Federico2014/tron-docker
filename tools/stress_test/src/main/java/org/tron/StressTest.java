@@ -3,8 +3,8 @@ package org.tron;
 import java.util.concurrent.Callable;
 import picocli.CommandLine;
 
-@CommandLine.Command(subcommands = {CommandLine.HelpCommand.class, GenerateTrx.class,
-    BroadcastTrx.class, StatisticTps.class})
+@CommandLine.Command(subcommands = {CommandLine.HelpCommand.class, GenerateTx.class,
+    BroadcastTx.class, StatisticTps.class, GetAddressList.class})
 public class StressTest implements Callable<Integer> {
 
   public static void main(String[] args) {

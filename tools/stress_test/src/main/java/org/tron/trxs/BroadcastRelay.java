@@ -12,7 +12,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import lombok.extern.slf4j.Slf4j;
-import org.tron.common.overlay.message.Message;
 import org.tron.core.net.TronNetService;
 import org.tron.core.net.message.adv.TransactionMessage;
 import org.tron.protos.Protocol.Transaction;
@@ -28,7 +27,7 @@ public class BroadcastRelay {
   private final String output = "stress-test-output";
 
   private final ExecutorService saveTransactionIDPool = Executors
-      .newFixedThreadPool(1, r -> new Thread(r, "save-relay-trx-id"));
+      .newFixedThreadPool(1, r -> new Thread(r, "save-relay-tx-id"));
 
   private final Random random = new Random(System.currentTimeMillis());
 
@@ -58,7 +57,7 @@ public class BroadcastRelay {
 
   public void broadcastTransactions() {
     long trxCount = 0;
-    boolean saveTrxId = TrxConfig.getInstance().isSaveTrxId();
+    boolean saveTrxId = TxConfig.getInstance().isSaveTrxId();
     if (saveTrxId) {
       saveTransactionIDPool.submit(() -> {
         int count = 0;
@@ -77,14 +76,14 @@ public class BroadcastRelay {
 
     long startTime = System.currentTimeMillis();
     logger.info("Start to process relay transaction broadcast task");
-    try (FileInputStream fis = new FileInputStream(output + File.separator + "relay-trx.csv")) {
+    try (FileInputStream fis = new FileInputStream(output + File.separator + "relay-tx.csv")) {
       Transaction transaction;
       int cnt = 0;
       long startTps = System.currentTimeMillis();
       long endTps;
       while ((transaction = Transaction.parseDelimitedFrom(fis)) != null) {
         trxCount++;
-        if (cnt > TrxConfig.getInstance().getTps()) {
+        if (cnt > TxConfig.getInstance().getBroadcastTpsLimit()) {
           endTps = System.currentTimeMillis();
           if (endTps - startTps < 1000) {
             Thread.sleep(1000 - (endTps - startTps));

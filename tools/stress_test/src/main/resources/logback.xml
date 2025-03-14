@@ -17,6 +17,7 @@
   <appender class="ch.qos.logback.core.rolling.RollingFileAppender"
     name="FILE">
     <file>./logs/stress_test.log</file>
+    <immediateFlush>true</immediateFlush>
     <rollingPolicy
       class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
       <!-- rollover daily -->
