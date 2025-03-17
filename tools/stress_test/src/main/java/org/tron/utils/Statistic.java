@@ -18,6 +18,9 @@ public class Statistic {
   @Setter
   private static int broadcastTpsLimit;
 
+  @Setter
+  private static int totalGenerateTxCnt;
+
   public static void result(long startBlock, long endBlock, String output) throws IllegalException {
     logger.info("TPS static range: start block: {}, end block: {}", startBlock, endBlock);
 
@@ -25,7 +28,7 @@ public class Statistic {
     long startNumber = 0, endNumber = 0;
     for (long i = startBlock; i < endBlock; i++) {
       block = apiWrapper.getBlockByNum(i);
-      if (block.getTransactionsCount() >= 10) {
+      if (block.getTransactionsCount() > 0) {
         startNumber = i;
         break;
       }
@@ -33,7 +36,7 @@ public class Statistic {
 
     for (long i = endBlock; i >= startBlock; i--) {
       block = apiWrapper.getBlockByNum(i);
-      if (block.getTransactionsCount() >= 10) {
+      if (block.getTransactionsCount() > 0) {
         endNumber = i;
         break;
       }
@@ -77,7 +80,8 @@ public class Statistic {
     logger.info("Stress test report:");
     logger.info("broadcast tps limit: {}", broadcastTpsLimit);
     logger.info("statistic block range: startBlock: {}, endBlock: {}", startNumber, endNumber);
-    logger.info("total transactions: {}", totalTrxCnt);
+    logger.info("total generate tx count: {}, total broadcast tx count: {}, tx on chain rate: {}",
+        totalGenerateTxCnt, totalTrxCnt, 1.0 * totalTrxCnt / totalGenerateTxCnt);
     logger.info("cost time: {} minutes", 1.0 * actualTime / (60 * 1000));
     logger.info("max block size: {}", maxTrxCntInOneBlock);
     logger.info("min block size: {}", minTrxCntInOneBlock);
@@ -92,7 +96,9 @@ public class Statistic {
       writer.write(String
           .format("statistic block range: startBlock: %d, endBlock: %d", startNumber, endNumber));
       writer.newLine();
-      writer.write(String.format("total transactions: %d", totalTrxCnt));
+      writer.write(String
+          .format("total generate tx count: %d, total broadcast tx count: %d, tx on chain rate: %f",
+              totalGenerateTxCnt, totalTrxCnt, 1.0 * totalTrxCnt / totalGenerateTxCnt));
       writer.newLine();
       writer.write(String.format("cost time: %f minutes", 1.0 * actualTime / (60 * 1000)));
       writer.newLine();

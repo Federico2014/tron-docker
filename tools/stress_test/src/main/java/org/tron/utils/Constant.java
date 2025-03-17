@@ -2,10 +2,11 @@ package org.tron.utils;
 
 public class Constant {
 
-  public static final String GET_ADDRESS_URL = "getAddressList.url";
-  public static final String GET_ADDRESS_START_NUMBER = "getAddressList.startBlockNumber";
-  public static final String GET_ADDRESS_END_NUMBER = "getAddressList.endBlockNumber";
+//  public static final String GET_ADDRESS_URL = "getAddressList.url";
+//  public static final String GET_ADDRESS_START_NUMBER = "getAddressList.startBlockNumber";
+//  public static final String GET_ADDRESS_END_NUMBER = "getAddressList.endBlockNumber";
   public static final String GET_ADDRESS_TOTAL_NUMBER = "getAddressList.totalNumber";
+  public static final String GET_ADDRESS_DB_PATH = "getAddressList.dbPath";
 
   public static final String GENERATE_TX_ENABLE = "generateTx.enable";
   public static final String TOTAL_TX_CNT = "generateTx.totalTxCnt";

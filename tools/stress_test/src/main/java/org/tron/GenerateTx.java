@@ -15,7 +15,7 @@ import picocli.CommandLine.Command;
 
 @Slf4j(topic = "generate")
 @Command(name = "generate",
-    description = "Generate the transactions and store them for stress test.",
+    description = "Generate plenty of transactions used the in the stress test.",
     exitCodeListHeading = "Exit Codes:%n",
     exitCodeList = {
         "0:Successful",

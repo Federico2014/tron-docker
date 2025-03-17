@@ -21,21 +21,25 @@ public class TxConfig {
 
   private static final TxConfig INSTANCE = new TxConfig();
 
-  @Setter
-  @Getter
-  private String getAddressUrl;
-
-  @Setter
-  @Getter
-  private long getAddressStartNumber = 0;
-
-  @Setter
-  @Getter
-  private long getAddressEndNumber = 0;
+//  @Setter
+//  @Getter
+//  private String getAddressUrl;
+//
+//  @Setter
+//  @Getter
+//  private long getAddressStartNumber = 0;
+//
+//  @Setter
+//  @Getter
+//  private long getAddressEndNumber = 0;
 
   @Setter
   @Getter
   private int getAddressTotalNumber = 0;
+
+  @Setter
+  @Getter
+  private String getAddressDbPath;
 
   @Setter
   @Getter
@@ -124,20 +128,24 @@ public class TxConfig {
 
 
   public static void initParams(Config config) {
-    if (config.hasPath(GET_ADDRESS_URL)) {
-      INSTANCE.setGetAddressUrl(config.getString(GET_ADDRESS_URL));
-    }
-
-    if (config.hasPath(GET_ADDRESS_START_NUMBER)) {
-      INSTANCE.setGetAddressStartNumber(config.getLong(GET_ADDRESS_START_NUMBER));
-    }
-
-    if (config.hasPath(GET_ADDRESS_END_NUMBER)) {
-      INSTANCE.setGetAddressEndNumber(config.getLong(GET_ADDRESS_END_NUMBER));
-    }
+//    if (config.hasPath(GET_ADDRESS_URL)) {
+//      INSTANCE.setGetAddressUrl(config.getString(GET_ADDRESS_URL));
+//    }
+//
+//    if (config.hasPath(GET_ADDRESS_START_NUMBER)) {
+//      INSTANCE.setGetAddressStartNumber(config.getLong(GET_ADDRESS_START_NUMBER));
+//    }
+//
+//    if (config.hasPath(GET_ADDRESS_END_NUMBER)) {
+//      INSTANCE.setGetAddressEndNumber(config.getLong(GET_ADDRESS_END_NUMBER));
+//    }
 
     if (config.hasPath(GET_ADDRESS_TOTAL_NUMBER)) {
       INSTANCE.setGetAddressTotalNumber(config.getInt(GET_ADDRESS_TOTAL_NUMBER));
+    }
+
+    if (config.hasPath(GET_ADDRESS_DB_PATH)) {
+      INSTANCE.setGetAddressDbPath(config.getString(GET_ADDRESS_DB_PATH));
     }
 
     if (config.hasPath(GENERATE_TX_ENABLE)) {

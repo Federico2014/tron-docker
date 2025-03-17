@@ -115,6 +115,7 @@ public class BroadcastTx implements Callable<Integer> {
     apiWrapper = new ApiWrapper(url, url, config.getPrivateKey());
     Statistic.setApiWrapper(apiWrapper);
     Statistic.setBroadcastTpsLimit(config.getBroadcastTpsLimit());
+    Statistic.setTotalGenerateTxCnt(config.getTotalTxCnt());
 
     tronNetDelegate = context.getBean(TronNetDelegate.class);
     while (getBroadCastPeerCount() <= 0) {

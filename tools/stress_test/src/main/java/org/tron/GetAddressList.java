@@ -1,5 +1,6 @@
 package org.tron;
 
+import static org.tron.plugins.utils.Constant.ACCOUNT_STORE;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -14,6 +15,10 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
+import org.rocksdb.RocksDBException;
+import org.tron.plugins.utils.db.DBInterface;
+import org.tron.plugins.utils.db.DBIterator;
+import org.tron.plugins.utils.db.DbTool;
 import org.tron.protos.contract.BalanceContract.TransferContract;
 import org.tron.trident.core.ApiWrapper;
 import org.tron.trident.proto.Chain.Transaction.Contract.ContractType;
@@ -29,7 +34,7 @@ import picocli.CommandLine.Option;
 
 @Slf4j(topic = "getAddressList")
 @Command(name = "getAddressList",
-    description = "Compute the the TPS.",
+    description = "Collect the address list from the account database.",
     exitCodeListHeading = "Exit Codes:%n",
     exitCodeList = {
         "0:Successful",
@@ -44,6 +49,11 @@ public class GetAddressList implements Callable<Integer> {
       description = "configure the parameters for broadcasting transactions."
           + " Default: ${DEFAULT-VALUE}")
   private String config;
+
+//  @CommandLine.Option(names = {"-d", "--database-directory"},
+//      defaultValue = "output-directory",
+//      description = "java-tron database directory path. Default: ${DEFAULT-VALUE}")
+//  private String database;
 
   @Option(names = {"-h", "--help"})
   private boolean help;
@@ -78,16 +88,16 @@ public class GetAddressList implements Callable<Integer> {
     TxConfig.initParams(stressConfig);
     TxConfig config = TxConfig.getInstance();
 
-    if (config.getGetAddressStartNumber() < 0 || config.getGetAddressStartNumber() >= config
-        .getGetAddressEndNumber()) {
-      logger.error("invalid start Block: {}, end Block: {}", config.getGetAddressStartNumber(),
-          config.getGetAddressEndNumber());
-      spec.commandLine().getErr()
-          .format("invalid start Block: %d, end Block: %d", config.getGetAddressStartNumber(),
-              config.getGetAddressEndNumber())
-          .println();
-      System.exit(1);
-    }
+//    if (config.getGetAddressStartNumber() < 0 || config.getGetAddressStartNumber() >= config
+//        .getGetAddressEndNumber()) {
+//      logger.error("invalid start Block: {}, end Block: {}", config.getGetAddressStartNumber(),
+//          config.getGetAddressEndNumber());
+//      spec.commandLine().getErr()
+//          .format("invalid start Block: %d, end Block: %d", config.getGetAddressStartNumber(),
+//              config.getGetAddressEndNumber())
+//          .println();
+//      System.exit(1);
+//    }
 
     if (config.getGetAddressTotalNumber() <= 0) {
       logger.error("invalid target number: {}", config.getGetAddressTotalNumber());
@@ -97,21 +107,61 @@ public class GetAddressList implements Callable<Integer> {
       System.exit(1);
     }
 
-    if (config.getGetAddressUrl().isEmpty()) {
-      logger.error("no available get address url found.");
-      spec.commandLine().getErr().println("no available get address url found.");
-      System.exit(1);
-    }
+//    if (config.getGetAddressUrl().isEmpty()) {
+//      logger.error("no available get address url found.");
+//      spec.commandLine().getErr().println("no available get address url found.");
+//      System.exit(1);
+//    }
+//
+//    apiWrapper = new ApiWrapper(config.getGetAddressUrl(), config.getGetAddressUrl(),
+//        config.getPrivateKey());
 
-    apiWrapper = new ApiWrapper(config.getGetAddressUrl(), config.getGetAddressUrl(),
-        config.getPrivateKey());
-
-    Set<ByteString> addressList = getAddressList(config.getGetAddressStartNumber(),
-        config.getGetAddressEndNumber(),
+//    Set<ByteString> addressList = getAddressList(config.getGetAddressStartNumber(),
+//        config.getGetAddressEndNumber(),
+//        config.getGetAddressTotalNumber());
+    Set<ByteString> addressList = getAddressListFromDB(config.getGetAddressDbPath(),
         config.getGetAddressTotalNumber());
     writeToFile(addressList, output);
-
     return 0;
+  }
+
+  private Set<ByteString> getAddressListFromDB(String dbPath, int totalNumber)
+      throws IOException, RocksDBException {
+    Set<ByteString> addressList = new HashSet<>();
+    String srcDir = dbPath + File.separator + "database";
+    DBInterface accountStore = DbTool.getDB(srcDir, ACCOUNT_STORE);
+    DBIterator iterator = accountStore.iterator();
+    for (iterator.seekToFirst(); iterator.valid(); iterator.next()) {
+      addressList.add(ByteString.copyFrom(iterator.getKey()));
+      if (addressList.size() % 10000 == 0) {
+        logger.info("collecting address list, current size: {}, target: {}", addressList.size(),
+            totalNumber);
+        spec.commandLine().getOut()
+            .format("collecting address list, current size: %d, target: %d", addressList.size(),
+                totalNumber)
+            .println();
+      }
+      if (addressList.size() >= totalNumber) {
+        logger
+            .info("finishing collecting address list: {}, target: {}", addressList.size(),
+                totalNumber);
+        spec.commandLine().getOut()
+            .format("finishing collecting address list: %d, target: %d",
+                addressList.size(), totalNumber)
+            .println();
+        return addressList;
+      }
+    }
+
+    logger
+        .info("finishing collecting address list: {}, target: {}", addressList.size(),
+            totalNumber);
+    spec.commandLine().getOut()
+        .format("finishing collecting address list: %d, target: %d",
+            addressList.size(), totalNumber).println();
+
+    DbTool.close();
+    return addressList;
   }
 
   private Set<ByteString> getAddressList(long startBlockNumber, long endBlockNumber,
@@ -172,7 +222,7 @@ public class GetAddressList implements Callable<Integer> {
               TriggerSmartContract triggerSmartContract = tx.getTransaction().getRawData()
                   .getContract(0)
                   .getParameter().unpack(TriggerSmartContract.class);
-              if(addressList.add(triggerSmartContract.getOwnerAddress())) {
+              if (addressList.add(triggerSmartContract.getOwnerAddress())) {
                 cnt++;
               }
               break;

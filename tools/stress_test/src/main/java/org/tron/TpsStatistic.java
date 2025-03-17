@@ -16,7 +16,7 @@ import picocli.CommandLine.Option;
 
 @Slf4j(topic = "statistic")
 @Command(name = "statistic",
-    description = "Compute the the TPS.",
+    description = "Compute the TPS from specified block range.",
     exitCodeListHeading = "Exit Codes:%n",
     exitCodeList = {
         "0:Successful",
