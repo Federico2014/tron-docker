@@ -43,11 +43,11 @@ public class TxConfig {
 
   @Setter
   @Getter
-  private int totalTxCnt = 1000000;
+  private int totalTxCnt;
 
   @Setter
   @Getter
-  private int singleTaskCnt = 1000000;
+  private int singleTaskCnt;
 
   @Setter
   @Getter

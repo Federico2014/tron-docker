@@ -6,7 +6,6 @@ import java.io.File;
 import java.nio.file.Paths;
 import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
-import org.tron.trident.core.exceptions.IllegalException;
 import org.tron.trxs.ReplayTxGenerator;
 import org.tron.trxs.TxConfig;
 import org.tron.trxs.TxFactory;
@@ -36,7 +35,7 @@ public class GenerateTx implements Callable<Integer> {
   private boolean help;
 
   @Override
-  public Integer call() throws IllegalException {
+  public Integer call() {
     if (help) {
       spec.commandLine().usage(System.out);
       return 0;

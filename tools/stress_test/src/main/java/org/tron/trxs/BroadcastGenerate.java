@@ -72,7 +72,7 @@ public class BroadcastGenerate {
           int count = 0;
           try (
               FileWriter writer = new FileWriter(
-                  output + File.separator + "broadcast-txID" + taskIndex + ".csv");
+                  output + File.separator + "broadcast-generate-txID" + taskIndex + ".csv");
               BufferedWriter bufferedWriter = new BufferedWriter(writer)
           ) {
             processTransactionID(count, bufferedWriter);
@@ -112,7 +112,7 @@ public class BroadcastGenerate {
             while (peerCnt <= 0) {
               logger.warn("broadcast task {}/{} has no available peers to broadcast, please wait",
                   index + 1, totalTask);
-              Thread.sleep(1000);
+              Thread.sleep(100);
               peerCnt = tronNetService.fastBroadcastTransaction(message);
             }
             if (saveTrxId) {

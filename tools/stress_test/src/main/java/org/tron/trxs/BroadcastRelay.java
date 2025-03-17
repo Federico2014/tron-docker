@@ -62,7 +62,8 @@ public class BroadcastRelay {
       saveTransactionIDPool.submit(() -> {
         int count = 0;
         try (
-            FileWriter writer = new FileWriter(output + File.separator + "relay-trxID.csv");
+            FileWriter writer = new FileWriter(
+                output + File.separator + "broadcast-relay-trxID.csv");
             BufferedWriter bufferedWriter = new BufferedWriter(writer)
         ) {
           processTransactionID(count, bufferedWriter);
@@ -96,7 +97,7 @@ public class BroadcastRelay {
             int peerCnt = tronNetService.fastBroadcastTransaction(message);
             while (peerCnt <= 0) {
               logger.warn("broadcast relay task has no available peers to broadcast, please wait");
-              Thread.sleep(1000);
+              Thread.sleep(100);
               peerCnt = tronNetService.fastBroadcastTransaction(message);
             }
             if (trxCount % 1000 == 0) {
@@ -123,7 +124,8 @@ public class BroadcastRelay {
     }
 
     long cost = System.currentTimeMillis() - startTime;
-    logger.info("relay trx size: {}, cost: {}, tps: {}", trxCount, cost, 1.0 * trxCount / cost * 1000);
+    logger.info("relay trx size: {}, cost: {}, tps: {}", trxCount, cost,
+        1.0 * trxCount / cost * 1000);
     BroadcastGenerate.shutDown(saveTransactionIDPool);
   }
 }

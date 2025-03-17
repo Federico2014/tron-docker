@@ -8,8 +8,8 @@ public class Constant {
   public static final String GET_ADDRESS_TOTAL_NUMBER = "getAddressList.totalNumber";
 
   public static final String GENERATE_TX_ENABLE = "generateTx.enable";
-  public static final String TOTAL_TX_CNT = "generateTx.totalTrxCnt";
-  public static final String SINGLE_TASK_TRX_COUNT = "generateTx.singleTaskTrxCount";
+  public static final String TOTAL_TX_CNT = "generateTx.totalTxCnt";
+  public static final String SINGLE_TASK_TRX_COUNT = "generateTx.singleTaskTxCount";
   public static final String GENERATE_TX_TYPE = "generateTx.txType";
   public static final String UPDATE_REF_URL = "generateTx.updateRefUrl";
   public static final String PRIVATE_KEY = "generateTx.privateKey";

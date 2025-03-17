@@ -21,7 +21,7 @@ import picocli.CommandLine.Option;
     exitCodeList = {
         "0:Successful",
         "n:Internal error: exception occurred, please check logs/stress_test.log"})
-public class StatisticTps implements Callable<Integer> {
+public class TpsStatistic implements Callable<Integer> {
 
   @CommandLine.Spec
   public static CommandLine.Model.CommandSpec spec;

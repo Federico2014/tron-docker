@@ -101,7 +101,7 @@ public class TxGenerator {
     if (cnt % 1000 == 0) {
       fos.flush();
       logger.info(
-          String.format("generate trx task: %d/%d, task remain: %d, task pending size: %d",
+          String.format("generate tx task: %d/%d, task remain: %d, task pending size: %d",
               index + 1, totalTask, countDownLatch.getCount(), transactions.size()));
     }
 

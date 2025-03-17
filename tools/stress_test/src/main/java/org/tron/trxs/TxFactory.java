@@ -109,7 +109,7 @@ public class TxFactory {
   }
 
   private void update() {
-    logger.info("begin to update the transaction reference");
+    logger.info("begin to update the tx reference");
     time.set(Math.max(System.currentTimeMillis() + validPeriod, time.get()));
     Block block = null;
     try {
@@ -128,7 +128,7 @@ public class TxFactory {
     long expiration = time.incrementAndGet();
     apiWrapper.enableLocalCreate(blockId, expiration);
 
-    logger.info("finish updating the transaction reference");
+    logger.info("finish updating the tx reference");
   }
 
   public void loadAddressList(String filePath) {

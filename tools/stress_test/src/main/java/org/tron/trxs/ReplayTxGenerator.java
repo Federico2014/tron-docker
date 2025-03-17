@@ -91,7 +91,7 @@ public class ReplayTxGenerator {
 
     BlockListExtention blockList = null;
     Optional<List<BlockExtention>> result;
-    int step = 10;
+    int step = 50;
     long stepEndNumber;
 
     for (long i = startNum; i < endNum; i = i + step) {
@@ -118,7 +118,7 @@ public class ReplayTxGenerator {
         }
       }
       logger.info(String
-          .format("extract the transactions from block: %d to block: %d.", i, stepEndNumber));
+          .format("extract the tx from block: %d to block: %d.", i, stepEndNumber));
     }
 
     logger.info("total relay transactions cnt: " + transactionsOfReplay.size());
