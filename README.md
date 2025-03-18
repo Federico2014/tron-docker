@@ -26,6 +26,8 @@ We also provide tools to facilitate the CI and testing process:
   - `root`: compute merkle root for tiny db. NOTE: large db may GC overhead
   limit exceeded.
   - `fork`: Modify the database of java-tron for shadow fork testing.
+- **Stress Test**: Execute the stress test and evaluate the performance of the `java-tron` fullnode.
+
 
 ## Prerequisites
 Please ensure you have the latest versions of Docker and Docker Compose installed by downloading them from the official websites:
@@ -134,6 +136,7 @@ To start all available features, or you want more customized operations, navigat
 - **Tools**:
    - **Gradle Docker**: Automate Docker image builds and testing. Check the [gradle docker](./tools/docker/README.md) documentation.
    - **Toolkit**: Perform a set of database related operations. Follow the [Toolkit guidance](./tools/toolkit/README.md).
+   - **Stress Test**: Execute the stress test. Follow the [stress test guidance](./tools/stress_test/README.md).
 
 ## Troubleshooting
 If you encounter any difficulties, please refer to the [Issue Work Flow](https://tronprotocol.github.io/documentation-en/developers/issue-workflow/#issue-work-flow), then raise an issue on [GitHub](https://github.com/tronprotocol/tron-docker/issues). For general questions, please use [Discord](https://discord.gg/cGKSsRVCGm) or [Telegram](https://t.me/TronOfficialDevelopersGroupEn).
