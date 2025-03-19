@@ -85,7 +85,7 @@ public class TxFactory {
     INSTANCE.config = TxConfig.getInstance();
     INSTANCE.keyPair = new KeyPair(INSTANCE.config.getPrivateKey());
     INSTANCE.loadAddressList(INSTANCE.config.getAddressListFile());
-    INSTANCE.addressListSize = INSTANCE.addressList.size();
+    INSTANCE.addressListSize = INSTANCE.addressList.size() - 1;
 
     long expirationTime = System.currentTimeMillis() + INSTANCE.validPeriod;
     INSTANCE.time.set(expirationTime);
