@@ -13,7 +13,7 @@ cd tron-docker/tools/gradlew
 # compile the stress test tool
 ./gradlew :stress-test:build
 # execute full command
-java -jar ../stress_test/build/libs/stresstest.jar -h
+java -jar ../stress_test/build/libs/stresstest.jar help
 ```
 The stress test tool includes four components:
 - `getAddressList`: Collect the address list from the account database.
@@ -30,7 +30,7 @@ the transactions. The corresponding configuration is:
 ```
 getAddressList = {
   totalNumber = 1000000
-  dbPath = "output-directory"
+  dbPath = "/path/to/output-directory"
 }
 ```
 - `totalNumber`: denotes the total addresses we need to collect.
@@ -62,7 +62,7 @@ generateTx = {
   updateRefUrl = "127.0.0.1:50051"
   // TRY18iTFy6p8yhWiCt1dhd2gz2c15ungq3
   privateKey = "aab926e86a17f0f46b4d22e61725edd5770a5b0fbdabb04b0f46ee499b1e34f2"
-  addressListFile = "address-list.csv"
+  addressListFile = "/path/to/address-list.csv"
   trc10Id = 1000001
   trc20Address = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
 }

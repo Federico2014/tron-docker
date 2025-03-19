@@ -271,6 +271,7 @@ public class GetAddressList implements Callable<Integer> {
         writer.write(address);
         writer.newLine();
       }
+      writer.flush();
       logger.info("write to file success: " + filePath);
       spec.commandLine().getOut().println("write to file success: " + filePath);
     } catch (IOException e) {
