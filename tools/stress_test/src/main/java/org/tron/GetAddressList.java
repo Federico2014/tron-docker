@@ -12,6 +12,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
@@ -266,11 +267,13 @@ public class GetAddressList implements Callable<Integer> {
   public static void writeToFile(Set<ByteString> data, String filePath) {
     try (BufferedWriter writer = new BufferedWriter(
         new FileWriter(filePath))) {
-      for (ByteString value : data) {
-        String address = Base58Check.bytesToBase58(value.toByteArray());
+      Iterator<ByteString> iterator = data.iterator();
+      while (iterator.hasNext()) {
+        String address = Base58Check.bytesToBase58(iterator.next().toByteArray()).trim();
         writer.write(address);
-        writer.newLine();
-      }
+        if (iterator.hasNext())
+          writer.newLine();
+        }
       writer.flush();
       logger.info("write to file success: " + filePath);
       spec.commandLine().getOut().println("write to file success: " + filePath);
