@@ -85,7 +85,7 @@ public class TxFactory {
     INSTANCE.config = TxConfig.getInstance();
     INSTANCE.keyPair = new KeyPair(INSTANCE.config.getPrivateKey());
     INSTANCE.loadAddressList(INSTANCE.config.getAddressListFile());
-    INSTANCE.addressListSize = INSTANCE.addressList.size() - 1;
+    INSTANCE.addressListSize = INSTANCE.addressList.size();
 
     long expirationTime = System.currentTimeMillis() + INSTANCE.validPeriod;
     INSTANCE.time.set(expirationTime);
@@ -135,7 +135,7 @@ public class TxFactory {
     try (BufferedReader reader = new BufferedReader(
         new FileReader(filePath))) {
       String line;
-      while ((line = reader.readLine()) != null) {
+      while ((line = reader.readLine()) != null && line.length() == 34) {
         addressList.add(line);
       }
       logger.info("load address success, list size: {}", addressList.size());
