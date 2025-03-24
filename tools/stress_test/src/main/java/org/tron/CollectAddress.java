@@ -266,6 +266,8 @@ public class CollectAddress implements Callable<Integer> {
 
   public static void writeToFile(Set<ByteString> data, String filePath) {
     logger.info("begin to write to file: " + filePath);
+    spec.commandLine().getOut().println("begin to write to file: " + filePath);
+
     try (BufferedWriter writer = new BufferedWriter(
         new FileWriter(filePath))) {
       Iterator<ByteString> iterator = data.iterator();
@@ -277,7 +279,7 @@ public class CollectAddress implements Callable<Integer> {
         }
       writer.flush();
       logger.info("finishing writing to file.");
-      spec.commandLine().getOut().println("write to file success: " + filePath);
+      spec.commandLine().getOut().println("finishing writing to file.");
     } catch (IOException e) {
       e.printStackTrace();
     }
