@@ -144,10 +144,10 @@ public class CollectAddress implements Callable<Integer> {
       }
       if (addressList.size() >= totalNumber) {
         logger
-            .info("finishing collecting address list: {}, target: {}", addressList.size(),
+            .info("collecting address list: {}, target: {}", addressList.size(),
                 totalNumber);
         spec.commandLine().getOut()
-            .format("finishing collecting address list: %d, target: %d",
+            .format("collecting address list: %d, target: %d",
                 addressList.size(), totalNumber)
             .println();
         return addressList;
@@ -155,10 +155,10 @@ public class CollectAddress implements Callable<Integer> {
     }
 
     logger
-        .info("finishing collecting address list: {}, target: {}", addressList.size(),
+        .info("collecting address list: {}, target: {}", addressList.size(),
             totalNumber);
     spec.commandLine().getOut()
-        .format("finishing collecting address list: %d, target: %d",
+        .format("collecting address list: %d, target: %d",
             addressList.size(), totalNumber).println();
 
     DbTool.close();
@@ -244,10 +244,10 @@ public class CollectAddress implements Callable<Integer> {
 
         if (addressList.size() > totalNumber) {
           logger
-              .info("finishing collecting address list: {}, target: {}", addressList.size(),
+              .info("collecting address list: {}, target: {}", addressList.size(),
                   totalNumber);
           spec.commandLine().getOut()
-              .format("finishing collecting address list: %d, target: %d",
+              .format("collecting address list: %d, target: %d",
                   addressList.size(), totalNumber)
               .println();
           return addressList;
@@ -256,15 +256,16 @@ public class CollectAddress implements Callable<Integer> {
     }
 
     logger
-        .info("finishing collecting address list: {}, target: {}", addressList.size(),
+        .info("collecting address list: {}, target: {}", addressList.size(),
             totalNumber);
     spec.commandLine().getOut()
-        .format("finishing collecting address list: %d, target: %d",
+        .format("collecting address list: %d, target: %d",
             addressList.size(), totalNumber).println();
     return addressList;
   }
 
   public static void writeToFile(Set<ByteString> data, String filePath) {
+    logger.info("begin to write to file: " + filePath);
     try (BufferedWriter writer = new BufferedWriter(
         new FileWriter(filePath))) {
       Iterator<ByteString> iterator = data.iterator();
@@ -275,7 +276,7 @@ public class CollectAddress implements Callable<Integer> {
           writer.newLine();
         }
       writer.flush();
-      logger.info("write to file success: " + filePath);
+      logger.info("finishing writing to file.");
       spec.commandLine().getOut().println("write to file success: " + filePath);
     } catch (IOException e) {
       e.printStackTrace();
