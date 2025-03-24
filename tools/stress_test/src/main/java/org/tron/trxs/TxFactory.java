@@ -3,12 +3,10 @@ package org.tron.trxs;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -62,12 +60,7 @@ public class TxFactory {
   @Getter
   private KeyPair keyPair;
 
-  @Getter
-  private List<String> addressList = new ArrayList<>();
-
-  private int addressListSize;
-  private Random random = new Random();
-
+  private ConcurrentLinkedQueue<String> addressQueue = new ConcurrentLinkedQueue<>();
 
   @Setter
   @Getter
@@ -85,7 +78,6 @@ public class TxFactory {
     INSTANCE.config = TxConfig.getInstance();
     INSTANCE.keyPair = new KeyPair(INSTANCE.config.getPrivateKey());
     INSTANCE.loadAddressList(INSTANCE.config.getAddressListFile());
-    INSTANCE.addressListSize = INSTANCE.addressList.size();
 
     long expirationTime = System.currentTimeMillis() + INSTANCE.validPeriod;
     INSTANCE.time.set(expirationTime);
@@ -136,9 +128,9 @@ public class TxFactory {
         new FileReader(filePath))) {
       String line;
       while ((line = reader.readLine()) != null && line.length() == 34) {
-        addressList.add(line);
+        addressQueue.offer(line);
       }
-      logger.info("load address success, list size: {}", addressList.size());
+      logger.info("load address success, size: {}", addressQueue.size());
     } catch (IOException e) {
       e.printStackTrace();
     }
@@ -150,21 +142,21 @@ public class TxFactory {
 
   public Transaction getTransferTx() throws IllegalException {
     TransactionExtention transaction = apiWrapper
-        .transfer(config.getFromAddress(), addressList.get(random.nextInt(addressListSize)),
+        .transfer(config.getFromAddress(), addressQueue.poll(),
             transferAmount);
     return apiWrapper.signTransaction(transaction);
   }
 
   public Transaction getTransferTrc10() throws IllegalException {
     TransactionExtention transaction = apiWrapper
-        .transferTrc10(config.getFromAddress(), addressList.get(random.nextInt(addressListSize)),
+        .transferTrc10(config.getFromAddress(), addressQueue.poll(),
             config.getTrc10Id(),
             transferTrc10Amount);
     return apiWrapper.signTransaction(transaction);
   }
 
   public Transaction getTransferTrc20() throws Exception {
-    byte[] toAddress = Base58Check.base58ToBytes(addressList.get(random.nextInt(addressListSize)));
+    byte[] toAddress = Base58Check.base58ToBytes(addressQueue.poll());
     String contractData = createContractData(INSTANCE.methodSign, toAddress, transferTrc20Amount);
     TransactionExtention transaction = apiWrapper
         .triggerContract(config.getFromAddress(), config.getTrc20ContractAddress(), contractData,
@@ -173,7 +165,7 @@ public class TxFactory {
   }
 
   public Transaction createTransferTx() {
-    byte[] toAddress = Base58Check.base58ToBytes(addressList.get(random.nextInt(addressListSize)));
+    byte[] toAddress = Base58Check.base58ToBytes(addressQueue.poll());
     Contract.TransferContract contract = Contract.TransferContract.newBuilder()
         .setOwnerAddress(ByteString.fromHex(config.getFromAddress()))
         .setToAddress(ByteString.copyFrom(toAddress))
@@ -186,7 +178,7 @@ public class TxFactory {
   }
 
   public Transaction createTransferTrc10() {
-    byte[] toAddress = Base58Check.base58ToBytes(addressList.get(random.nextInt(addressListSize)));
+    byte[] toAddress = Base58Check.base58ToBytes(addressQueue.poll());
     Contract.TransferAssetContract contract = Contract.TransferAssetContract.newBuilder()
         .setAssetName(ByteString.copyFromUtf8(String.valueOf(config.getTrc10Id())))
         .setOwnerAddress(ByteString.fromHex(config.getFromAddress()))
@@ -200,7 +192,7 @@ public class TxFactory {
   }
 
   public Transaction createTransferTrc20() {
-    byte[] toAddress = Base58Check.base58ToBytes(addressList.get(random.nextInt(addressListSize)));
+    byte[] toAddress = Base58Check.base58ToBytes(addressQueue.poll());
     String contractData = createContractData(INSTANCE.methodSign, toAddress, transferTrc20Amount);
     Contract.TriggerSmartContract contract = Contract.TriggerSmartContract.newBuilder()
         .setOwnerAddress(ByteString.fromHex(config.getFromAddress()))

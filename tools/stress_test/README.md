@@ -16,7 +16,7 @@ cd tron-docker/tools/gradlew
 java -jar ../stress_test/build/libs/stresstest.jar help
 ```
 The stress test tool includes four components:
-- `getAddressList`: Collect the address list from the account database.
+- `collect`: Collect the address list from the account database.
 - `generate`: Generate plenty of transactions used the in the stress test.
 - `broadcast`: Broadcast the transactions and compute the TPS.
 - `statistic`: Compute the TPS from specified block range.
@@ -24,23 +24,23 @@ The stress test tool includes four components:
 All the configurations of the components are placed in the `stress.conf`, please refer [stress.conf](./src/main/resources/stress.conf)
 as an example.
 
-### Get Address List
-`getAddressList` subcommand is used to collect the addresses from the database, which act as `to` addresses when generating
+### Collect Address List
+`collect` subcommand is used to collect the addresses from the database, which act as `to` addresses when generating
 the transactions. The corresponding configuration is:
 ```
-getAddressList = {
-  totalNumber = 1000000
+collectAddress = {
+  total = 1000000
   dbPath = "/path/to/output-directory"
 }
 ```
-- `totalNumber`: denotes the total addresses we need to collect.
+- `total`: denotes the total addresses number we need to collect.
 - `dbPath`: denotes the database path
 
-Then we can execute the following `getAddressList` subcommand:
+Then we can execute the following `collect` subcommand:
 
 ```shell
 # execute full command
-java -jar /path/to/stresstest.jar getAddressList -c /path/to/stress.conf
+java -jar /path/to/stresstest.jar collect -c /path/to/stress.conf
 # check the log
 tail -f logs/stress_test.log
 ```
@@ -107,7 +107,7 @@ The corresponding configuration is:
 broadcastTx = {
   generateTx = true
   relayTx = false
-  tpsLimit = 4000
+  tpsLimit = 3000
   saveTxId = true
 }
 ```
@@ -146,16 +146,16 @@ After broadcasting all the transactions, it will generate the `stress-test-outpu
 file to report the stress-test statistic result. For example:
 ```
 Stress test report:
-broadcast tps limit: 4000
-statistic block range: startBlock: 68153000, endBlock: 68153047
-total transactions: 436931
-cost time: 2.350000 minutes
+broadcast tps limit: 3000
+statistic block range: startBlock: 67926067, endBlock: 67926133
+total generate tx count: 600000, total broadcast tx count: 580862, tx on chain rate: 0.968103
+cost time: 3.300000 minutes
 max block size: 9615
-min block size: 5363
-tps: 3098.801514
+min block size: 3001
+tps: 2933.646484
 miss block rate: 0.000000
 ```
-The above the result shows the stress test TPS has reached `3098`.
+The above the result shows the stress test TPS has reached `2933`.
 
 ## Relay and Broadcast
 If you want to relay the transactions from other network, you need to set `relayTrx.enable = true` and

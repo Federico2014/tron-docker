@@ -35,11 +35,11 @@ public class TxConfig {
 
   @Setter
   @Getter
-  private int getAddressTotalNumber = 0;
+  private int addressTotal = 0;
 
   @Setter
   @Getter
-  private String getAddressDbPath;
+  private String addressDbPath;
 
   @Setter
   @Getter
@@ -140,12 +140,12 @@ public class TxConfig {
 //      INSTANCE.setGetAddressEndNumber(config.getLong(GET_ADDRESS_END_NUMBER));
 //    }
 
-    if (config.hasPath(GET_ADDRESS_TOTAL_NUMBER)) {
-      INSTANCE.setGetAddressTotalNumber(config.getInt(GET_ADDRESS_TOTAL_NUMBER));
+    if (config.hasPath(ADDRESS_TOTAL)) {
+      INSTANCE.setAddressTotal(config.getInt(ADDRESS_TOTAL));
     }
 
-    if (config.hasPath(GET_ADDRESS_DB_PATH)) {
-      INSTANCE.setGetAddressDbPath(config.getString(GET_ADDRESS_DB_PATH));
+    if (config.hasPath(ADDRESS_DB_PATH)) {
+      INSTANCE.setAddressDbPath(config.getString(ADDRESS_DB_PATH));
     }
 
     if (config.hasPath(GENERATE_TX_ENABLE)) {
@@ -155,6 +155,12 @@ public class TxConfig {
     if (config.hasPath(TOTAL_TX_CNT)
         && config.getInt(TOTAL_TX_CNT) > 0) {
       INSTANCE.setTotalTxCnt(config.getInt(TOTAL_TX_CNT));
+    }
+
+    if (INSTANCE.getTotalTxCnt() > INSTANCE.getAddressTotal()) {
+      logger.error("the tx count should be less than the address total number");
+      throw new IllegalArgumentException(
+          "the tx count should be less than the address total number");
     }
 
     if (config.hasPath(SINGLE_TASK_TRX_COUNT)

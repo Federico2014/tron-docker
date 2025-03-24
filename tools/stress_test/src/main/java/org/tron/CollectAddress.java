@@ -33,14 +33,14 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-@Slf4j(topic = "getAddressList")
-@Command(name = "getAddressList",
+@Slf4j(topic = "collect")
+@Command(name = "collect",
     description = "Collect the address list from the account database.",
     exitCodeListHeading = "Exit Codes:%n",
     exitCodeList = {
         "0:Successful",
         "n:Internal error: exception occurred, please check logs/stress_test.log"})
-public class GetAddressList implements Callable<Integer> {
+public class CollectAddress implements Callable<Integer> {
 
   @CommandLine.Spec
   public static CommandLine.Model.CommandSpec spec;
@@ -100,10 +100,10 @@ public class GetAddressList implements Callable<Integer> {
 //      System.exit(1);
 //    }
 
-    if (config.getGetAddressTotalNumber() <= 0) {
-      logger.error("invalid target number: {}", config.getGetAddressTotalNumber());
+    if (config.getAddressTotal() <= 0) {
+      logger.error("invalid target number: {}", config.getAddressTotal());
       spec.commandLine().getErr()
-          .format("invalid target number: %d", config.getGetAddressTotalNumber())
+          .format("invalid target number: %d", config.getAddressTotal())
           .println();
       System.exit(1);
     }
@@ -120,8 +120,8 @@ public class GetAddressList implements Callable<Integer> {
 //    Set<ByteString> addressList = getAddressList(config.getGetAddressStartNumber(),
 //        config.getGetAddressEndNumber(),
 //        config.getGetAddressTotalNumber());
-    Set<ByteString> addressList = getAddressListFromDB(config.getGetAddressDbPath(),
-        config.getGetAddressTotalNumber());
+    Set<ByteString> addressList = getAddressListFromDB(config.getAddressDbPath(),
+        config.getAddressTotal());
     writeToFile(addressList, output);
     return 0;
   }
