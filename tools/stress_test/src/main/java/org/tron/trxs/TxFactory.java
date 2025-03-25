@@ -6,6 +6,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -156,7 +157,7 @@ public class TxFactory {
   }
 
   public Transaction getTransferTrc20() throws Exception {
-    byte[] toAddress = Base58Check.base58ToBytes(addressQueue.poll());
+    byte[] toAddress = Base58Check.base58ToBytes(Objects.requireNonNull(addressQueue.poll()));
     String contractData = createContractData(INSTANCE.methodSign, toAddress, transferTrc20Amount);
     TransactionExtention transaction = apiWrapper
         .triggerContract(config.getFromAddress(), config.getTrc20ContractAddress(), contractData,
@@ -165,7 +166,7 @@ public class TxFactory {
   }
 
   public Transaction createTransferTx() {
-    byte[] toAddress = Base58Check.base58ToBytes(addressQueue.poll());
+    byte[] toAddress = Base58Check.base58ToBytes(Objects.requireNonNull(addressQueue.poll()));
     Contract.TransferContract contract = Contract.TransferContract.newBuilder()
         .setOwnerAddress(ByteString.fromHex(config.getFromAddress()))
         .setToAddress(ByteString.copyFrom(toAddress))
@@ -178,7 +179,7 @@ public class TxFactory {
   }
 
   public Transaction createTransferTrc10() {
-    byte[] toAddress = Base58Check.base58ToBytes(addressQueue.poll());
+    byte[] toAddress = Base58Check.base58ToBytes(Objects.requireNonNull(addressQueue.poll()));
     Contract.TransferAssetContract contract = Contract.TransferAssetContract.newBuilder()
         .setAssetName(ByteString.copyFromUtf8(String.valueOf(config.getTrc10Id())))
         .setOwnerAddress(ByteString.fromHex(config.getFromAddress()))
@@ -192,7 +193,7 @@ public class TxFactory {
   }
 
   public Transaction createTransferTrc20() {
-    byte[] toAddress = Base58Check.base58ToBytes(addressQueue.poll());
+    byte[] toAddress = Base58Check.base58ToBytes(Objects.requireNonNull(addressQueue.poll()));
     String contractData = createContractData(INSTANCE.methodSign, toAddress, transferTrc20Amount);
     Contract.TriggerSmartContract contract = Contract.TriggerSmartContract.newBuilder()
         .setOwnerAddress(ByteString.fromHex(config.getFromAddress()))

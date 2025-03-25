@@ -265,8 +265,8 @@ public class CollectAddress implements Callable<Integer> {
   }
 
   public static void writeToFile(Set<ByteString> data, String filePath) {
-    logger.info("begin to write to file: " + filePath);
-    spec.commandLine().getOut().println("begin to write to file: " + filePath);
+    logger.info("begin to write to file: " + filePath + ", please wait...");
+    spec.commandLine().getOut().println("begin to write to file: " + filePath + ", please wait...");
 
     try (BufferedWriter writer = new BufferedWriter(
         new FileWriter(filePath))) {
@@ -274,9 +274,10 @@ public class CollectAddress implements Callable<Integer> {
       while (iterator.hasNext()) {
         String address = Base58Check.bytesToBase58(iterator.next().toByteArray()).trim();
         writer.write(address);
-        if (iterator.hasNext())
+        if (iterator.hasNext()) {
           writer.newLine();
         }
+      }
       writer.flush();
       logger.info("finishing writing to file.");
       spec.commandLine().getOut().println("finishing writing to file.");
