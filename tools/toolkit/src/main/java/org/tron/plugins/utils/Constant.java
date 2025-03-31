@@ -35,14 +35,19 @@ public class Constant {
   public static final String CONTRACT_STORE = "contract";
   public static final String STORAGE_ROW_STORE = "storage-row";
   public static final String VOTES_STORE = "votes";
+  public static final String BLOCK_INDEX_STORE = "block-index";
+  public static final String BLOCK_STORE = "block";
 
   public static final byte[] LATEST_BLOCK_HEADER_TIMESTAMP = "latest_block_header_timestamp"
       .getBytes();
   public static final byte[] MAINTENANCE_TIME_INTERVAL = "MAINTENANCE_TIME_INTERVAL".getBytes();
+  public static final byte[] LATEST_BLOCK_HEADER_NUMBER = "latest_block_header_number".getBytes();
   public static final byte[] MAINTENANCE_TIME = "NEXT_MAINTENANCE_TIME".getBytes();
   public static final byte[] ACTIVE_WITNESSES = "active_witnesses".getBytes();
   public static final int ADDRESS_BYTE_ARRAY_LENGTH = 21;
 
   public static final String VOTES_ALL_WITNESSES = "votes.allWitnesses";
   public static final String VOTES_WITNESS_LIST = "votes.witnessList";
+  public static final int BLOCK_PRODUCED_INTERVAL = 3000;
+
 }
