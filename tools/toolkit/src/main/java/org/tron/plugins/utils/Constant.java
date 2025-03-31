@@ -1,5 +1,7 @@
 package org.tron.plugins.utils;
 
+import java.math.BigInteger;
+
 public class Constant {
 
   public static final String WITNESS_KEY = "witnesses";
@@ -37,6 +39,7 @@ public class Constant {
   public static final String VOTES_STORE = "votes";
   public static final String BLOCK_INDEX_STORE = "block-index";
   public static final String BLOCK_STORE = "block";
+  public static final String DELEGATION_STORE = "delegation";
 
   public static final byte[] LATEST_BLOCK_HEADER_TIMESTAMP = "latest_block_header_timestamp"
       .getBytes();
@@ -50,4 +53,11 @@ public class Constant {
   public static final String VOTES_WITNESS_LIST = "votes.witnessList";
   public static final int BLOCK_PRODUCED_INTERVAL = 3000;
 
+  public static final String REWARDS_KEY = "rewards";
+  public static final byte[] CHANGE_DELEGATION = "CHANGE_DELEGATION".getBytes();
+  public static final byte[] CURRENT_CYCLE_NUMBER = "CURRENT_CYCLE_NUMBER".getBytes();
+  public static final byte[] NEW_REWARD_ALGORITHM_EFFECTIVE_CYCLE =
+      "NEW_REWARD_ALGORITHM_EFFECTIVE_CYCLE".getBytes();
+  public static final byte[] ALLOW_OLD_REWARD_OPT = "ALLOW_OLD_REWARD_OPT".getBytes();
+  public static final BigInteger DECIMAL_OF_VI_REWARD = BigInteger.valueOf(10).pow(18);
 }

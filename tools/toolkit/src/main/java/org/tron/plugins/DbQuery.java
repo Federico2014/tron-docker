@@ -1,11 +1,19 @@
 package org.tron.plugins;
 
+import static org.tron.plugins.utils.Constant.ACCOUNT_STORE;
+import static org.tron.plugins.utils.Constant.ALLOW_OLD_REWARD_OPT;
 import static org.tron.plugins.utils.Constant.BLOCK_INDEX_STORE;
 import static org.tron.plugins.utils.Constant.BLOCK_PRODUCED_INTERVAL;
 import static org.tron.plugins.utils.Constant.BLOCK_STORE;
+import static org.tron.plugins.utils.Constant.CHANGE_DELEGATION;
+import static org.tron.plugins.utils.Constant.CURRENT_CYCLE_NUMBER;
+import static org.tron.plugins.utils.Constant.DECIMAL_OF_VI_REWARD;
+import static org.tron.plugins.utils.Constant.DELEGATION_STORE;
 import static org.tron.plugins.utils.Constant.DYNAMIC_PROPERTY_STORE;
 import static org.tron.plugins.utils.Constant.LATEST_BLOCK_HEADER_NUMBER;
 import static org.tron.plugins.utils.Constant.MAINTENANCE_TIME_INTERVAL;
+import static org.tron.plugins.utils.Constant.NEW_REWARD_ALGORITHM_EFFECTIVE_CYCLE;
+import static org.tron.plugins.utils.Constant.REWARDS_KEY;
 import static org.tron.plugins.utils.Constant.VOTES_ALL_WITNESSES;
 import static org.tron.plugins.utils.Constant.VOTES_STORE;
 import static org.tron.plugins.utils.Constant.VOTES_WITNESS_LIST;
@@ -18,6 +26,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.io.File;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,16 +40,23 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
+import org.bouncycastle.util.encoders.Hex;
 import org.rocksdb.RocksDBException;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Commons;
+import org.tron.common.utils.Pair;
 import org.tron.common.utils.Sha256Hash;
 import org.tron.common.utils.StringUtil;
+import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockCapsule;
+import org.tron.core.capsule.BytesCapsule;
 import org.tron.core.capsule.VotesCapsule;
 import org.tron.core.capsule.WitnessCapsule;
 import org.tron.core.exception.BadItemException;
+import org.tron.core.store.DelegationStore;
 import org.tron.plugins.utils.FileUtils;
 import org.tron.plugins.utils.JsonFormat;
 import org.tron.plugins.utils.db.DBInterface;
@@ -82,12 +98,16 @@ public class DbQuery implements Callable<Integer> {
   private DBInterface dynamicPropertiesStore;
   private DBInterface blockIndexStore;
   private DBInterface blockStore;
+  private DBInterface accountStore;
+  private DBInterface delegationStore;
 
   boolean allWitness = false;
   List<String> witnessList = new ArrayList<>();
-
   private Set<ByteString> voters = new HashSet<>();
   private Map<ByteString, VoteWitnessTx> votesTx = new HashMap<>();
+
+  List<String> rewardAddressList = new ArrayList<>();
+  Map<byte[], BigInteger> latestWitnessVi = new HashMap<>();
 
   private void initStore() throws IOException, RocksDBException {
     String srcDir = database + File.separator + "database";
@@ -96,6 +116,8 @@ public class DbQuery implements Callable<Integer> {
     dynamicPropertiesStore = DbTool.getDB(srcDir, DYNAMIC_PROPERTY_STORE);
     blockIndexStore = DbTool.getDB(srcDir, BLOCK_INDEX_STORE);
     blockStore = DbTool.getDB(srcDir, BLOCK_STORE);
+    accountStore = DbTool.getDB(srcDir, ACCOUNT_STORE);
+    delegationStore = DbTool.getDB(srcDir, DELEGATION_STORE);
   }
 
 
@@ -128,8 +150,8 @@ public class DbQuery implements Callable<Integer> {
     }
 
     initStore();
-
     processVotes(queryConfig);
+    processRewards(queryConfig);
 
     DbTool.close();
     return 0;
@@ -304,17 +326,6 @@ public class DbQuery implements Callable<Integer> {
     }
   }
 
-  private Boolean existInWitnessList(List<String> witnessList,
-      VoteWitnessContract voteWitnessContract) {
-    AtomicBoolean exist = new AtomicBoolean(false);
-    voteWitnessContract.getVotesList().forEach(vote -> {
-      if (witnessList.contains(StringUtil.encode58Check(vote.getVoteAddress().toByteArray()))) {
-        exist.set(true);
-      }
-    });
-    return exist.get();
-  }
-
   private class VoteWitnessTx {
 
     private Sha256Hash txHash;
@@ -335,4 +346,286 @@ public class DbQuery implements Callable<Integer> {
       return exist.get();
     }
   }
+
+  private void processRewards(Config config) {
+    if (config.hasPath(REWARDS_KEY)) {
+      rewardAddressList = config.getStringList(REWARDS_KEY);
+    }
+    if (rewardAddressList.isEmpty()) {
+      return;
+    }
+    spec.commandLine().getOut().println("\nBegin to process the rewards");
+
+    loadAccumulateWitnessVi();
+
+    rewardAddressList.forEach(address -> {
+      long reward = queryReward(Commons.decodeFromBase58Check(address), false);
+      long latestReward = queryReward(Commons.decodeFromBase58Check(address), true);
+
+      spec.commandLine().getOut()
+          .format("address: %s, cycle reward: %d, latest reward: %d, increment: %d", address, reward,
+              latestReward, (latestReward - reward)).println();
+    });
+
+
+  }
+
+  private void loadAccumulateWitnessVi() {
+    long cycle = getCurrentCycle();
+    DBIterator iterator = witnessStore.iterator();
+    WitnessCapsule witnessCapsule;
+    for (iterator.seekToFirst(); iterator.valid(); iterator.next()) {
+      witnessCapsule = new WitnessCapsule(iterator.getValue());
+      accumulateWitnessVi(cycle, witnessCapsule.createDbKey(), witnessCapsule.getVoteCount());
+    }
+  }
+
+  private void accumulateWitnessVi(long cycle, byte[] address, long voteCount) {
+    BigInteger preVi = getWitnessVi(cycle - 1, address);
+    long reward = getReward(cycle, address);
+    if (reward == 0 || voteCount == 0) { // Just forward pre vi
+      if (!BigInteger.ZERO.equals(preVi)) { // Zero vi will not be record
+        setWitnessVi(cycle, address, preVi);
+      }
+    } else { // Accumulate delta vi
+      BigInteger deltaVi = BigInteger.valueOf(reward)
+          .multiply(DECIMAL_OF_VI_REWARD)
+          .divide(BigInteger.valueOf(voteCount));
+      setWitnessVi(cycle, address, preVi.add(deltaVi));
+    }
+  }
+
+  private void setWitnessVi(long cycle, byte[] address, BigInteger value) {
+    latestWitnessVi.put(buildViKey(cycle, address), value);
+  }
+
+  private BigInteger getWitnessViFromMap(long cycle, byte[] address) {
+    BigInteger value = latestWitnessVi.get(buildViKey(cycle, address));
+    if (value == null) {
+      return BigInteger.ZERO;
+    } else {
+      return value;
+    }
+  }
+
+
+  private long queryReward(byte[] address, boolean isLatest) {
+    if (ByteArray.toLong(dynamicPropertiesStore.get(CHANGE_DELEGATION)) != 1) {
+      return 0;
+    }
+
+    byte[] accountValue = accountStore.get(address);
+    if (accountValue == null) {
+      return 0;
+    }
+    AccountCapsule accountCapsule = new AccountCapsule(accountValue);
+    long beginCycle = getBeginCycle(address);
+    long endCycle = getEndCycle(address);
+    long currentCycle = getCurrentCycle();
+
+    long reward = 0;
+    if (beginCycle > currentCycle) {
+      return accountCapsule.getAllowance();
+    }
+
+    //withdraw the latest cycle reward
+    if (beginCycle + 1 == endCycle && beginCycle < currentCycle) {
+      AccountCapsule account = getAccountVote(beginCycle, address);
+      if (account != null) {
+        reward = computeReward(beginCycle, endCycle, account, false);
+      }
+      beginCycle += 1;
+    }
+
+    endCycle = currentCycle;
+    if (CollectionUtils.isEmpty(accountCapsule.getVotesList())) {
+      return reward + accountCapsule.getAllowance();
+    }
+    if (beginCycle < endCycle) {
+      reward += computeReward(beginCycle, endCycle, accountCapsule, isLatest);
+    }
+    return reward + accountCapsule.getAllowance();
+  }
+
+  private long getBeginCycle(byte[] address) {
+    byte[] beginCycleValue = delegationStore.get(address);
+    return beginCycleValue == null ? 0 : ByteArray.toLong(beginCycleValue);
+  }
+
+  private long getEndCycle(byte[] address) {
+    byte[] endCycleValue = delegationStore.get(buildEndCycleKey(address));
+    return endCycleValue == null ? -1L : ByteArray.toLong(endCycleValue);
+  }
+
+  private byte[] buildEndCycleKey(byte[] address) {
+    return ("end-" + Hex.toHexString(address)).getBytes();
+  }
+
+  private long getCurrentCycle() {
+    byte[] currentCycleValue = dynamicPropertiesStore.get(CURRENT_CYCLE_NUMBER);
+    return currentCycleValue == null ? 0L : ByteArray.toLong(currentCycleValue);
+  }
+
+  private AccountCapsule getAccountVote(long cycle, byte[] address) {
+    byte[] value = delegationStore.get(buildAccountVoteKey(cycle, address));
+    if (value == null) {
+      return null;
+    } else {
+      return new AccountCapsule(value);
+    }
+  }
+
+  private byte[] buildAccountVoteKey(long cycle, byte[] address) {
+    return (cycle + "-" + Hex.toHexString(address) + "-account-vote").getBytes();
+  }
+
+  private long getNewRewardAlgorithmEffectiveCycle() {
+    byte[] value = dynamicPropertiesStore.get(NEW_REWARD_ALGORITHM_EFFECTIVE_CYCLE);
+    return value == null ? 0L : ByteArray.toLong(value);
+  }
+
+  private Boolean allowOldRewardOpt() {
+    byte[] value = dynamicPropertiesStore.get(ALLOW_OLD_REWARD_OPT);
+    return value != null && ByteArray.toLong(value) == 1;
+  }
+
+  private BigInteger getWitnessVi(long cycle, byte[] address) {
+    byte[] value = delegationStore.get(buildViKey(cycle, address));
+    if (value == null) {
+      return BigInteger.ZERO;
+    } else {
+      return new BigInteger(value);
+    }
+  }
+
+  private byte[] buildViKey(long cycle, byte[] address) {
+    return (cycle + "-" + Hex.toHexString(address) + "-vi").getBytes();
+  }
+
+  public long getReward(long cycle, byte[] address) {
+    byte[] value = delegationStore.get(buildRewardKey(cycle, address));
+    if (value == null) {
+      return 0L;
+    } else {
+      return ByteArray.toLong(value);
+    }
+  }
+
+  private byte[] buildRewardKey(long cycle, byte[] address) {
+    return (cycle + "-" + Hex.toHexString(address) + "-reward").getBytes();
+  }
+
+  public long getWitnessVote(long cycle, byte[] address) {
+    byte[] value = delegationStore.get(buildVoteKey(cycle, address));
+    if (value == null) {
+      return -1L;
+    } else {
+      return ByteArray.toLong(value);
+    }
+  }
+
+  private byte[] buildVoteKey(long cycle, byte[] address) {
+    return (cycle + "-" + Hex.toHexString(address) + "-vote").getBytes();
+  }
+
+
+  /**
+   * Compute reward from begin cycle to end cycle, which endCycle must greater than beginCycle.
+   * While computing reward after new reward algorithm taking effective cycle number, it will use
+   * new algorithm instead of old way.
+   *
+   * @param beginCycle     begin cycle (include)
+   * @param endCycle       end cycle (exclude)
+   * @param accountCapsule account capsule
+   * @param isLatest       whether to compute the latest reward
+   * @return total reward
+   */
+  private long computeReward(long beginCycle, long endCycle, AccountCapsule accountCapsule,
+      boolean isLatest) {
+    if (beginCycle >= endCycle) {
+      return 0;
+    }
+
+    long reward = 0;
+    long newAlgorithmCycle = getNewRewardAlgorithmEffectiveCycle();
+    List<Pair<byte[], Long>> srAddresses = accountCapsule.getVotesList().stream()
+        .map(vote -> new Pair<>(vote.getVoteAddress().toByteArray(), vote.getVoteCount()))
+        .collect(Collectors.toList());
+    if (beginCycle < newAlgorithmCycle) {
+      long oldEndCycle = Math.min(endCycle, newAlgorithmCycle);
+      reward = getOldReward(beginCycle, oldEndCycle, srAddresses);
+      beginCycle = oldEndCycle;
+    }
+    if (beginCycle < endCycle) {
+      for (Pair<byte[], Long> vote : srAddresses) {
+        byte[] srAddress = vote.getKey();
+        BigInteger beginVi = getWitnessVi(beginCycle - 1, srAddress);
+        BigInteger endVi;
+        if (!isLatest) {
+          endVi = getWitnessVi(endCycle - 1, srAddress);
+        } else {
+          endVi = getWitnessViFromMap(endCycle, srAddress);
+        }
+        BigInteger deltaVi = endVi.subtract(beginVi);
+        if (deltaVi.signum() <= 0) {
+          continue;
+        }
+        long userVote = vote.getValue();
+        reward += deltaVi.multiply(BigInteger.valueOf(userVote))
+            .divide(DECIMAL_OF_VI_REWARD).longValue();
+      }
+    }
+    return reward;
+  }
+
+  private long getNewRewardAlgorithmReward(long beginCycle, long endCycle,
+      List<Pair<byte[], Long>> votes) {
+    long reward = 0;
+    if (beginCycle < endCycle) {
+      for (Pair<byte[], Long> vote : votes) {
+        byte[] srAddress = vote.getKey();
+        BigInteger beginVi = getWitnessVi(beginCycle - 1, srAddress);
+        BigInteger endVi = getWitnessVi(endCycle - 1, srAddress);
+        BigInteger deltaVi = endVi.subtract(beginVi);
+        if (deltaVi.signum() <= 0) {
+          continue;
+        }
+        long userVote = vote.getValue();
+        reward += deltaVi.multiply(BigInteger.valueOf(userVote))
+            .divide(DECIMAL_OF_VI_REWARD).longValue();
+      }
+    }
+    return reward;
+  }
+
+  private long computeReward(long cycle, List<Pair<byte[], Long>> votes) {
+    long reward = 0;
+    for (Pair<byte[], Long> vote : votes) {
+      byte[] srAddress = vote.getKey();
+      long totalReward = getReward(cycle, srAddress);
+      if (totalReward <= 0) {
+        continue;
+      }
+      long totalVote = getWitnessVote(cycle, srAddress);
+      if (totalVote == DelegationStore.REMARK || totalVote == 0) {
+        continue;
+      }
+      long userVote = vote.getValue();
+      double voteRate = (double) userVote / totalVote;
+      reward += voteRate * totalReward;
+    }
+    return reward;
+  }
+
+  private long getOldReward(long begin, long end, List<Pair<byte[], Long>> votes) {
+    if (allowOldRewardOpt()) {
+      return getNewRewardAlgorithmReward(begin, end, votes);
+    }
+    long reward = 0;
+    for (long cycle = begin; cycle < end; cycle++) {
+      reward += computeReward(cycle, votes);
+    }
+    return reward;
+  }
+
 }
