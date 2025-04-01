@@ -107,7 +107,7 @@ public class DbQuery implements Callable<Integer> {
   private Map<ByteString, VoteWitnessTx> votesTx = new HashMap<>();
 
   List<String> rewardAddressList = new ArrayList<>();
-  Map<byte[], BigInteger> latestWitnessVi = new HashMap<>();
+  Map<String, BigInteger> latestWitnessVi = new HashMap<>();
 
   private void initStore() throws IOException, RocksDBException {
     String srcDir = database + File.separator + "database";
@@ -357,17 +357,13 @@ public class DbQuery implements Callable<Integer> {
     spec.commandLine().getOut().println("\nBegin to process the rewards");
 
     loadAccumulateWitnessVi();
-
     rewardAddressList.forEach(address -> {
       long reward = queryReward(Commons.decodeFromBase58Check(address), false);
       long latestReward = queryReward(Commons.decodeFromBase58Check(address), true);
-
       spec.commandLine().getOut()
           .format("address: %s, cycle reward: %d, latest reward: %d, increment: %d", address, reward,
               latestReward, (latestReward - reward)).println();
     });
-
-
   }
 
   private void loadAccumulateWitnessVi() {
@@ -396,18 +392,19 @@ public class DbQuery implements Callable<Integer> {
   }
 
   private void setWitnessVi(long cycle, byte[] address, BigInteger value) {
-    latestWitnessVi.put(buildViKey(cycle, address), value);
+    byte[] key = buildViKey(cycle, address);
+    latestWitnessVi.put(ByteArray.toHexString(key), value);
   }
 
   private BigInteger getWitnessViFromMap(long cycle, byte[] address) {
-    BigInteger value = latestWitnessVi.get(buildViKey(cycle, address));
+    byte[] key = buildViKey(cycle, address);
+    BigInteger value = latestWitnessVi.get(ByteArray.toHexString(key));
     if (value == null) {
       return BigInteger.ZERO;
     } else {
       return value;
     }
   }
-
 
   private long queryReward(byte[] address, boolean isLatest) {
     if (ByteArray.toLong(dynamicPropertiesStore.get(CHANGE_DELEGATION)) != 1) {
@@ -441,7 +438,7 @@ public class DbQuery implements Callable<Integer> {
     if (CollectionUtils.isEmpty(accountCapsule.getVotesList())) {
       return reward + accountCapsule.getAllowance();
     }
-    if (beginCycle < endCycle) {
+    if ((!isLatest && beginCycle < endCycle) || (isLatest && beginCycle <= endCycle)) {
       reward += computeReward(beginCycle, endCycle, accountCapsule, isLatest);
     }
     return reward + accountCapsule.getAllowance();
@@ -542,7 +539,7 @@ public class DbQuery implements Callable<Integer> {
    */
   private long computeReward(long beginCycle, long endCycle, AccountCapsule accountCapsule,
       boolean isLatest) {
-    if (beginCycle >= endCycle) {
+    if ((!isLatest && beginCycle >= endCycle) || (isLatest && beginCycle > endCycle)) {
       return 0;
     }
 
@@ -556,7 +553,7 @@ public class DbQuery implements Callable<Integer> {
       reward = getOldReward(beginCycle, oldEndCycle, srAddresses);
       beginCycle = oldEndCycle;
     }
-    if (beginCycle < endCycle) {
+    if ((!isLatest && beginCycle < endCycle) || (isLatest && beginCycle <= endCycle)) {
       for (Pair<byte[], Long> vote : srAddresses) {
         byte[] srAddress = vote.getKey();
         BigInteger beginVi = getWitnessVi(beginCycle - 1, srAddress);
@@ -564,6 +561,7 @@ public class DbQuery implements Callable<Integer> {
         if (!isLatest) {
           endVi = getWitnessVi(endCycle - 1, srAddress);
         } else {
+          endCycle = getCurrentCycle();
           endVi = getWitnessViFromMap(endCycle, srAddress);
         }
         BigInteger deltaVi = endVi.subtract(beginVi);
