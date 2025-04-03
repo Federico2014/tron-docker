@@ -52,7 +52,6 @@ import org.tron.common.utils.Sha256Hash;
 import org.tron.common.utils.StringUtil;
 import org.tron.core.capsule.AccountCapsule;
 import org.tron.core.capsule.BlockCapsule;
-import org.tron.core.capsule.BytesCapsule;
 import org.tron.core.capsule.VotesCapsule;
 import org.tron.core.capsule.WitnessCapsule;
 import org.tron.core.exception.BadItemException;
@@ -249,14 +248,13 @@ public class DbQuery implements Callable<Integer> {
           spec.commandLine().getOut().println(witnessStr);
           logger.info(witnessStr);
         });
-
   }
 
 
   private Map<ByteString, Long> countVote() {
     final Map<ByteString, Long> countWitness = Maps.newHashMap();
     DBIterator dbIterator = votesStore.iterator();
-//    long sizeCount = 0;
+    long sizeCount = 0;
     dbIterator.seekToFirst();
     while (dbIterator.hasNext()) {
       Entry<byte[], byte[]> next = dbIterator.next();
@@ -281,11 +279,11 @@ public class DbQuery implements Callable<Integer> {
           countWitness.put(voteAddress, voteCount);
         }
       });
-//      sizeCount++;
+      sizeCount++;
     }
-//    spec.commandLine().getOut().format("There are total %d new votes in this epoch", sizeCount)
-//        .println();
-//    logger.info("There are total {} new votes in this epoch", sizeCount);
+    spec.commandLine().getOut().format("There are total %d new votes in this epoch", sizeCount)
+        .println();
+    logger.info("There are total {} new votes in this epoch", sizeCount);
     return countWitness;
   }
 
