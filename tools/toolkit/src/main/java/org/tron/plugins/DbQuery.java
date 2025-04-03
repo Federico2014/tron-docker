@@ -32,11 +32,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -102,7 +100,7 @@ public class DbQuery implements Callable<Integer> {
 
   boolean allWitness = false;
   List<String> witnessList = new ArrayList<>();
-  private Set<ByteString> voters = new HashSet<>();
+  private Map<ByteString, VotesCapsule> voters = new HashMap<>();
   private Map<ByteString, VoteWitnessTx> votesTx = new HashMap<>();
 
   List<String> rewardAddressList = new ArrayList<>();
@@ -169,11 +167,13 @@ public class DbQuery implements Callable<Integer> {
     }
 
     Map<ByteString, WitnessCapsule> witnesses = new HashMap<>();
+    Map<ByteString, Long> oldWitnessCnt =  new HashMap<>();
     DBIterator iterator = witnessStore.iterator();
     WitnessCapsule witnessCapsule;
     for (iterator.seekToFirst(); iterator.valid(); iterator.next()) {
       witnessCapsule = new WitnessCapsule(iterator.getValue());
       witnesses.put(ByteString.copyFrom(iterator.getKey()), witnessCapsule);
+      oldWitnessCnt.put(witnessCapsule.getAddress(), witnessCapsule.getVoteCount());
     }
 
     Map<ByteString, Long> countWitness = countVote();
@@ -181,26 +181,56 @@ public class DbQuery implements Callable<Integer> {
 
     AtomicInteger cnt = new AtomicInteger();
     votesTx.forEach((address, voteWitnessTx) -> {
-      if (allWitness || voteWitnessTx.existInWitnessList(witnessList)) {
+      if (allWitness || existInWitnessList(voters.get(address), witnessList)) {
         cnt.getAndIncrement();
       }
     });
     spec.commandLine().getOut()
-        .format("There are  %d new related votes in this epoch", cnt.get())
+        .format("There are  %d related system-contract votes tx in this epoch", cnt.get())
         .println();
-    logger.info("There are {} new related votes in this epoch", cnt.get());
+    logger.info("There are {} related system-contract votes tx in this epoch", cnt.get());
     cnt.set(-1);
     votesTx.forEach((address, voteWitnessTx) -> {
-      if (!allWitness && !voteWitnessTx.existInWitnessList(witnessList)) {
+      VotesCapsule votesCapsule = voters.get(address);
+      if (!allWitness && !existInWitnessList(votesCapsule, witnessList)) {
         return;
       }
       cnt.getAndIncrement();
       String txHashStr = voteWitnessTx.txHash.toString();
       spec.commandLine().getOut().format("tx %d: %s", cnt.get(), txHashStr).println();
       logger.info("tx {}: {}", cnt.get(), txHashStr);
-      String voteWitnessStr = JsonFormat.printToString(voteWitnessTx.voteWitnessContract, true);
-      spec.commandLine().getOut().println(voteWitnessStr);
-      logger.info(voteWitnessStr);
+//      String voteWitnessStr = JsonFormat.printToString(voteWitnessTx.voteWitnessContract, true);
+//      spec.commandLine().getOut().println(voteWitnessStr);
+//      logger.info(voteWitnessStr);
+      String voteCapsuleStr = JsonFormat.printToString(votesCapsule.getInstance(), true);
+      spec.commandLine().getOut().println(voteCapsuleStr);
+      logger.info(voteCapsuleStr);
+      voters.remove(address);
+    });
+
+    cnt.set(0);
+    voters.forEach((address, votesCapsule) -> {
+      if ((allWitness || existInWitnessList(voters.get(address), witnessList))
+          && votesTx.get(address) == null) {
+        cnt.getAndIncrement();
+      }
+    });
+    spec.commandLine().getOut()
+        .format("There are  %d related smart-contract votes tx in this epoch", cnt.get())
+        .println();
+    logger.info("There are {} related smart-contract votes tx in this epoch", cnt.get());
+
+    cnt.set(-1);
+    voters.forEach((address, voteCapsule) -> {
+      if (!allWitness && !existInWitnessList(voteCapsule, witnessList)) {
+        return;
+      }
+      cnt.getAndIncrement();
+      spec.commandLine().getOut().format("tx %d", cnt.get()).println();
+      logger.info("tx {}:", cnt.get());
+      String voteCapsuleStr = JsonFormat.printToString(voteCapsule.getInstance(), true);
+      spec.commandLine().getOut().println(voteCapsuleStr);
+      logger.info(voteCapsuleStr);
     });
 
     countWitness.forEach((address, voteCount) -> {
@@ -244,10 +274,28 @@ public class DbQuery implements Callable<Integer> {
 
     witnessCapsuleList.forEach(
         witness -> {
-          String witnessStr = JsonFormat.printToString(witness.getInstance(), true);
-          spec.commandLine().getOut().println(witnessStr);
-          logger.info(witnessStr);
+          String output = formatWitness(witness, oldWitnessCnt.get(witness.getAddress()));
+          spec.commandLine().getOut().println(output);
+          logger.info(output);
         });
+  }
+
+  private String formatWitness(WitnessCapsule witnessCapsule, long previousCnt) {
+    return String.format("{\"address\": %s,"
+        + "\"oldVoteCount\": %d,\"newVoteCount\": %d,"
+            + "\"voteCountIncrement\": %d,\"url\": %s,"
+        + "\"totalProduced\": %d,\"totalMissed\": %d,\"latestBlockNum\": %d,"
+        + "\"latestSlotNum\": %d,\"isJobs\": %b}",
+        StringUtil.encode58Check(witnessCapsule.getAddress().toByteArray()),
+        previousCnt,
+        witnessCapsule.getVoteCount(),
+        witnessCapsule.getVoteCount() - previousCnt,
+        witnessCapsule.getUrl(),
+        witnessCapsule.getTotalProduced(),
+        witnessCapsule.getTotalMissed(),
+        witnessCapsule.getLatestBlockNum(),
+        witnessCapsule.getLatestSlotNum(),
+        witnessCapsule.getIsJobs());
   }
 
 
@@ -258,9 +306,9 @@ public class DbQuery implements Callable<Integer> {
     dbIterator.seekToFirst();
     while (dbIterator.hasNext()) {
       Entry<byte[], byte[]> next = dbIterator.next();
-      voters.add(ByteString.copyFrom(next.getKey()));
-
       VotesCapsule votes = new VotesCapsule(next.getValue());
+      voters.put(ByteString.copyFrom(next.getKey()), votes);
+
       votes.getOldVotes().forEach(vote -> {
         ByteString voteAddress = vote.getVoteAddress();
         long voteCount = vote.getVoteCount();
@@ -311,7 +359,7 @@ public class DbQuery implements Callable<Integer> {
               .getParameter().unpack(VoteWitnessContract.class);
           ByteString ownerAddress = voteWitnessContract.getOwnerAddress();
           voteWitnessContract.getVotesList().forEach(vote -> {
-            if (voters.contains(ownerAddress)) {
+            if (voters.keySet().contains(ownerAddress)) {
               votesTx.put(ownerAddress,
                   new VoteWitnessTx(txCapsule.getTransactionId(), voteWitnessContract));
             }
@@ -345,6 +393,21 @@ public class DbQuery implements Callable<Integer> {
     }
   }
 
+  private Boolean existInWitnessList(VotesCapsule votesCapsule, List<String> witnessList) {
+    AtomicBoolean exist = new AtomicBoolean(false);
+    votesCapsule.getOldVotes().forEach(vote -> {
+      if (witnessList.contains(StringUtil.encode58Check(vote.getVoteAddress().toByteArray()))) {
+        exist.set(true);
+      }
+    });
+    votesCapsule.getNewVotes().forEach(vote -> {
+      if (witnessList.contains(StringUtil.encode58Check(vote.getVoteAddress().toByteArray()))) {
+        exist.set(true);
+      }
+    });
+    return exist.get();
+  }
+
   private void processRewards(Config config) {
     if (config.hasPath(REWARDS_KEY)) {
       rewardAddressList = config.getStringList(REWARDS_KEY);
@@ -359,7 +422,8 @@ public class DbQuery implements Callable<Integer> {
       long reward = queryReward(Commons.decodeFromBase58Check(address), false);
       long latestReward = queryReward(Commons.decodeFromBase58Check(address), true);
       spec.commandLine().getOut()
-          .format("address: %s, cycle reward: %d, latest reward: %d, increment: %d", address, reward,
+          .format("address: %s, cycle reward: %d, latest reward: %d, increment: %d", address,
+              reward,
               latestReward, (latestReward - reward)).println();
     });
   }
