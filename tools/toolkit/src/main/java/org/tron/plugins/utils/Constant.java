@@ -49,11 +49,11 @@ public class Constant {
   public static final byte[] ACTIVE_WITNESSES = "active_witnesses".getBytes();
   public static final int ADDRESS_BYTE_ARRAY_LENGTH = 21;
 
-  public static final String VOTES_ALL_WITNESSES = "votes.allWitnesses";
-  public static final String VOTES_WITNESS_LIST = "votes.witnessList";
+  public static final String VOTES_ALL_WITNESSES = "vote.allWitnesses";
+  public static final String VOTES_WITNESS_LIST = "vote.witnessList";
   public static final int BLOCK_PRODUCED_INTERVAL = 3000;
 
-  public static final String REWARDS_KEY = "rewards";
+  public static final String REWARDS_KEY = "reward";
   public static final byte[] CHANGE_DELEGATION = "CHANGE_DELEGATION".getBytes();
   public static final byte[] CURRENT_CYCLE_NUMBER = "CURRENT_CYCLE_NUMBER".getBytes();
   public static final byte[] NEW_REWARD_ALGORITHM_EFFECTIVE_CYCLE =

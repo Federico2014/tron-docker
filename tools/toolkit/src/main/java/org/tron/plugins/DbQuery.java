@@ -66,7 +66,7 @@ import picocli.CommandLine.Command;
 
 @Slf4j(topic = "query")
 @Command(name = "query",
-    description = "query the votes and reward from the database.",
+    description = "query the latest vote and reward information from the database.",
     exitCodeListHeading = "Exit Codes:%n",
     exitCodeList = {
         "0:Successful",
@@ -83,7 +83,7 @@ public class DbQuery implements Callable<Integer> {
 
   @CommandLine.Option(names = {"-c", "--config"},
       defaultValue = "query.conf",
-      description = "config the votes and reward options."
+      description = "config the votes and reward query options."
           + " Default: ${DEFAULT-VALUE}")
   private String config;
 
@@ -162,12 +162,15 @@ public class DbQuery implements Callable<Integer> {
       witnessList = queryConfig.getStringList(VOTES_WITNESS_LIST);
     }
 
-    if (!allWitness && witnessList.size() == 0) {
+    if (!allWitness && witnessList.isEmpty()) {
+      spec.commandLine().getOut()
+          .println("skip the vote query.");
+      logger.info("skip the vote query.");
       return;
     }
 
     Map<ByteString, WitnessCapsule> witnesses = new HashMap<>();
-    Map<ByteString, Long> oldWitnessCnt =  new HashMap<>();
+    Map<ByteString, Long> oldWitnessCnt = new HashMap<>();
     DBIterator iterator = witnessStore.iterator();
     WitnessCapsule witnessCapsule;
     for (iterator.seekToFirst(); iterator.valid(); iterator.next()) {
@@ -186,9 +189,9 @@ public class DbQuery implements Callable<Integer> {
       }
     });
     spec.commandLine().getOut()
-        .format("There are  %d related system-contract votes tx in this epoch", cnt.get())
+        .format("There are  %d related system-contract vote txs", cnt.get())
         .println();
-    logger.info("There are {} related system-contract votes tx in this epoch", cnt.get());
+    logger.info("There are {} related system-contract vote txs", cnt.get());
     cnt.set(-1);
     votesTx.forEach((address, voteWitnessTx) -> {
       VotesCapsule votesCapsule = voters.get(address);
@@ -216,9 +219,9 @@ public class DbQuery implements Callable<Integer> {
       }
     });
     spec.commandLine().getOut()
-        .format("There are  %d related smart-contract votes tx in this epoch", cnt.get())
+        .format("There are  %d related smart-contract votes txs", cnt.get())
         .println();
-    logger.info("There are {} related smart-contract votes tx in this epoch", cnt.get());
+    logger.info("There are {} related smart-contract votes txs", cnt.get());
 
     cnt.set(-1);
     voters.forEach((address, voteCapsule) -> {
@@ -282,10 +285,10 @@ public class DbQuery implements Callable<Integer> {
 
   private String formatWitness(WitnessCapsule witnessCapsule, long previousCnt) {
     return String.format("{\"address\": %s,"
-        + "\"oldVoteCount\": %d,\"newVoteCount\": %d,"
+            + "\"oldVoteCount\": %d,\"newVoteCount\": %d,"
             + "\"voteCountIncrement\": %d,\"url\": %s,"
-        + "\"totalProduced\": %d,\"totalMissed\": %d,\"latestBlockNum\": %d,"
-        + "\"latestSlotNum\": %d,\"isJobs\": %b}",
+            + "\"totalProduced\": %d,\"totalMissed\": %d,\"latestBlockNum\": %d,"
+            + "\"latestSlotNum\": %d,\"isJobs\": %b}",
         StringUtil.encode58Check(witnessCapsule.getAddress().toByteArray()),
         previousCnt,
         witnessCapsule.getVoteCount(),
@@ -413,9 +416,12 @@ public class DbQuery implements Callable<Integer> {
       rewardAddressList = config.getStringList(REWARDS_KEY);
     }
     if (rewardAddressList.isEmpty()) {
+      spec.commandLine().getOut()
+          .println("skip the reward query.");
+      logger.info("skip the reward query.");
       return;
     }
-    spec.commandLine().getOut().println("\nBegin to process the rewards");
+    spec.commandLine().getOut().println("\nBegin to query the reward");
 
     loadAccumulateWitnessVi();
     rewardAddressList.forEach(address -> {
@@ -423,9 +429,12 @@ public class DbQuery implements Callable<Integer> {
       long latestReward = queryReward(Commons.decodeFromBase58Check(address), true);
       spec.commandLine().getOut()
           .format("address: %s, cycle reward: %d, latest reward: %d, increment: %d", address,
-              reward,
-              latestReward, (latestReward - reward)).println();
+              reward, latestReward, (latestReward - reward)).println();
+      logger.info("address: {}, cycle reward: {}, latest reward: {}, increment: {}", address,
+          reward, latestReward, (latestReward - reward));
     });
+
+    spec.commandLine().getOut().println("Finish querying the reward");
   }
 
   private void loadAccumulateWitnessVi() {
