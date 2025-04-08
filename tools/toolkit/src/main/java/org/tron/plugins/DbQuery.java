@@ -125,7 +125,7 @@ public class DbQuery implements Callable<Integer> {
       return 0;
     }
 
-    Config queryConfig = ConfigFactory.load();
+    Config queryConfig;
     File file = Paths.get(config).toFile();
     if (file.exists() && file.isFile()) {
       queryConfig = ConfigFactory.parseFile(file);
@@ -192,6 +192,7 @@ public class DbQuery implements Callable<Integer> {
         .format("There are  %d related system-contract vote txs", cnt.get())
         .println();
     logger.info("There are {} related system-contract vote txs", cnt.get());
+
     cnt.set(-1);
     votesTx.forEach((address, voteWitnessTx) -> {
       VotesCapsule votesCapsule = voters.get(address);
@@ -218,11 +219,11 @@ public class DbQuery implements Callable<Integer> {
         cnt.getAndIncrement();
       }
     });
+
     spec.commandLine().getOut()
         .format("There are  %d related smart-contract votes txs", cnt.get())
         .println();
     logger.info("There are {} related smart-contract votes txs", cnt.get());
-
     cnt.set(-1);
     voters.forEach((address, voteCapsule) -> {
       if (!allWitness && !existInWitnessList(voteCapsule, witnessList)) {
@@ -274,12 +275,13 @@ public class DbQuery implements Callable<Integer> {
 //      String witnessesJson = JsonFormat.printToString(builder.build(), true);
 //      spec.commandLine().getOut().println(witnessesJson);
 //      logger.info(witnessesJson);
-
+    cnt.set(-1);
     witnessCapsuleList.forEach(
         witness -> {
+          cnt.getAndIncrement();
           String output = formatWitness(witness, oldWitnessCnt.get(witness.getAddress()));
-          spec.commandLine().getOut().println(output);
-          logger.info(output);
+          spec.commandLine().getOut().println(cnt.get() + " " + output);
+          logger.info(cnt.get() + " " + output);
         });
   }
 
