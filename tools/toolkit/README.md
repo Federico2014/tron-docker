@@ -186,9 +186,9 @@ output-directory
 Please refer [DbFork](DbFork.md) guidance for more details.
 
 ## DB Query
-[ListWitnesses](https://developers.tron.network/reference/listwitnesses) and [getReward](https://developers.tron.network/reference/wallet-getreward) api can
-only query the votes and rewards information up to the end of previous maintenance period.
-DB query tool can get the latest vote and reward information from the database.
+The [ListWitnesses](https://developers.tron.network/reference/listwitnesses) and [getReward](https://developers.tron.network/reference/wallet-getreward)
+APIs provide vote and reward data only until the end of the last maintenance period.
+To obtain the latest information, please query the database directly using the DB query tool.
 
 ### Available parameters:
 - `-c, --config=<config>`: config the vote and reward options. Default: query.conf
