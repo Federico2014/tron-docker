@@ -14,7 +14,6 @@ import org.tron.core.config.DefaultConfig;
 import org.tron.core.config.args.Args;
 import org.tron.core.net.TronNetDelegate;
 import org.tron.core.net.TronNetService;
-import org.tron.core.services.RpcApiService;
 import org.tron.trident.core.ApiWrapper;
 import org.tron.trident.core.exceptions.IllegalException;
 import org.tron.trident.proto.Chain.Block;
@@ -107,7 +106,6 @@ public class BroadcastTx implements Callable<Integer> {
 
     context = new TronApplicationContext(DefaultConfig.class);
     app = ApplicationFactory.create(context);
-    app.addService(context.getBean(RpcApiService.class));
     app.startup();
 
     String url = String.format("%s:%d", "127.0.0.1",

@@ -135,6 +135,7 @@ tail -f logs/stress_test.log
 ```
 - `--fn-config`: configure the `java-tron` network we need to connect, please refer [config.conf](./src/main/resources/config.conf)
   as an example. Make sure to configure the correct `p2p.version` and `seed.node` options.
+  We only need to turn on the `rpc` service in the config, namely `rpc.enable = true`.
 
 - `-d`: configure the `java-tron` database. Before executing the broadcasting process, `broadcast` component
   needs to sync with the connected network. So we'd better copy the database from the connected network.

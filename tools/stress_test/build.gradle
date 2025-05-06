@@ -58,12 +58,17 @@ dependencies {
         exclude group: "ch.qos.logback", module: "logback-classic"
     }
     implementation platform('com.fasterxml.jackson:jackson-bom:2.14.0')
-    implementation(project(":toolkit")) {
-        exclude group: "org.slf4j", module: "slf4j-api"
-        exclude group: "ch.qos.logback", module: "logback-classic"
-    }
+    implementation project(":toolkit")
+//    implementation(project(":toolkit")) {
+//        exclude group: "org.slf4j", module: "slf4j-api"
+//        exclude group: "ch.qos.logback", module: "logback-classic"
+//    }
     implementation files('../toolkit/build/libs/Toolkit.jar')
+    implementation group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+    implementation group: 'org.slf4j', name: 'jcl-over-slf4j', version: '1.7.25'
+    implementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.13'
 
+    implementation group: 'org.springframework', name: 'spring-context', version: '5.3.18'
 }
 
 application {
