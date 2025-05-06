@@ -47,8 +47,6 @@ public class DbLiteTest {
   public void startApp() {
     context = new TronApplicationContext(DefaultConfig.class);
     appTest = ApplicationFactory.create(context);
-    appTest.addService(context.getBean(RpcApiService.class));
-    appTest.addService(context.getBean(RpcApiServiceOnSolidity.class));
     appTest.startup();
 
     String fullNode = String.format("%s:%d", "127.0.0.1",

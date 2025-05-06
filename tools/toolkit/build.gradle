@@ -31,7 +31,7 @@ shadowJar {
 
 dependencies {
     testImplementation 'junit:junit:4.13.2'
-    testImplementation('com.github.tronprotocol.java-tron:framework:GreatVoyage-v4.7.7') {
+    testImplementation('com.github.Federico2014.java-tron:framework:GreatVoyage-v4.8.12') {
         exclude group: 'com.fasterxml.jackson', module: 'jackson-bom'
         exclude group: "pull-parser", module: "pull-parser"
     }
@@ -45,7 +45,7 @@ dependencies {
     implementation 'io.github.tronprotocol:leveldbjni-all:1.18.2'
     implementation 'io.github.tronprotocol:leveldb:1.18.2'
 
-    implementation('com.github.tronprotocol.java-tron:chainbase:GreatVoyage-v4.7.7') {
+    implementation('com.github.Federico2014.java-tron:chainbase:GreatVoyage-v4.8.12') {
         exclude group: 'com.fasterxml.jackson', module: 'jackson-bom'
         exclude group: "pull-parser", module: "pull-parser"
     }
@@ -58,6 +58,11 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.12'
 
     implementation 'com.alibaba:fastjson:1.2.83'
+    implementation group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+    implementation "org.apache.commons:commons-lang3:3.4"
+    implementation "org.apache.commons:commons-collections4:4.1"
+
+    implementation group: 'org.springframework', name: 'spring-context', version: '5.3.18'
 }
 
 application {
