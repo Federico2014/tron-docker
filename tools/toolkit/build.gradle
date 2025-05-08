@@ -31,7 +31,7 @@ shadowJar {
 
 dependencies {
     testImplementation 'junit:junit:4.13.2'
-    testImplementation('com.github.Federico2014.java-tron:framework:GreatVoyage-v4.8.12') {
+    testImplementation('com.github.Federico2014.java-tron:framework:GreatVoyage-v4.8.13') {
         exclude group: 'com.fasterxml.jackson', module: 'jackson-bom'
         exclude group: "pull-parser", module: "pull-parser"
     }
@@ -45,7 +45,7 @@ dependencies {
     implementation 'io.github.tronprotocol:leveldbjni-all:1.18.2'
     implementation 'io.github.tronprotocol:leveldb:1.18.2'
 
-    implementation('com.github.Federico2014.java-tron:chainbase:GreatVoyage-v4.8.12') {
+    implementation('com.github.Federico2014.java-tron:chainbase:GreatVoyage-v4.8.13') {
         exclude group: 'com.fasterxml.jackson', module: 'jackson-bom'
         exclude group: "pull-parser", module: "pull-parser"
     }
